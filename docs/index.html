@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tennis Lineup Optimizer — Documentation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#0B1A2E;--navy-mid:#152238;--navy-light:#1E2D45;
+  --gold:#C8A951;--gold-dim:rgba(200,169,81,.15);
+  --white:#FFFFFF;--off-white:#F4F5F7;--light-gray:#E5E7EB;
+  --green:#34D399;--green-bg:rgba(52,211,153,.12);
+  --amber:#FBBF24;--amber-bg:rgba(251,191,36,.12);
+  --red:#F87171;--red-bg:rgba(248,113,113,.12);
+  --text:#1A1A2E;--text-sec:#6B7280;--text-light:#9CA3AF;
+  --radius:12px;--radius-sm:8px;
+  --shadow:0 1px 3px rgba(0,0,0,.08),0 4px 12px rgba(0,0,0,.04);
+  --sidebar-w:240px;
+}
+html{font-size:16px;scroll-behavior:smooth}
+body{font-family:'DM Sans',sans-serif;background:var(--off-white);color:var(--text);min-height:100vh}
+
+/* TOP NAV */
+.topnav{position:fixed;top:0;left:0;right:0;z-index:200;background:var(--navy);background-image:linear-gradient(135deg,var(--navy) 0%,var(--navy-mid) 100%);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.topnav-logo{display:flex;align-items:center;gap:10px;text-decoration:none}
+.topnav-icon{width:32px;height:32px;background:var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--navy)}
+.topnav-title{font-family:'Bebas Neue',sans-serif;color:var(--white);font-size:20px;letter-spacing:1.5px}
+.topnav-title span{color:var(--gold)}
+.topnav-appbtn{font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;padding:7px 16px;border-radius:20px;border:1.5px solid var(--gold);background:transparent;color:var(--gold);text-decoration:none;transition:all .15s}
+.topnav-appbtn:hover{background:var(--gold);color:var(--navy)}
+
+/* LAYOUT */
+.layout{display:flex;min-height:100vh;padding-top:56px}
+
+/* SIDEBAR */
+.sidebar{width:var(--sidebar-w);flex-shrink:0;position:fixed;top:56px;bottom:0;left:0;overflow-y:auto;background:var(--white);border-right:1px solid var(--light-gray);padding:24px 0}
+.sidebar-section{margin-bottom:8px}
+.sidebar-heading{font-size:10px;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:.8px;padding:8px 20px 4px}
+.sidebar-link{display:block;font-size:13px;font-weight:500;color:var(--text-sec);text-decoration:none;padding:7px 20px;border-left:3px solid transparent;transition:all .15s}
+.sidebar-link:hover{color:var(--navy);background:var(--off-white);border-left-color:var(--gold)}
+.sidebar-link.active{color:var(--navy);font-weight:600;border-left-color:var(--gold);background:var(--gold-dim)}
+
+/* CONTENT */
+.content{margin-left:var(--sidebar-w);flex:1;padding:40px 48px 80px;max-width:860px}
+@media(max-width:700px){
+  .sidebar{display:none}
+  .content{margin-left:0;padding:24px 20px 60px}
+}
+
+/* PROSE */
+.doc-section{margin-bottom:56px;scroll-margin-top:72px}
+h1.doc-title{font-family:'Bebas Neue',sans-serif;font-size:38px;letter-spacing:2px;color:var(--navy);line-height:1.05;margin-bottom:10px}
+.doc-subtitle{font-size:16px;color:var(--text-sec);margin-bottom:32px;line-height:1.5}
+h2.section-title{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:1.5px;color:var(--navy);margin-bottom:4px;display:flex;align-items:center;gap:10px}
+h2.section-title .sec-icon{font-size:20px}
+.section-divider{height:3px;width:48px;background:var(--gold);border-radius:2px;margin-bottom:20px}
+h3.subsection{font-size:15px;font-weight:700;color:var(--navy);margin:24px 0 10px}
+p{font-size:14px;line-height:1.7;color:var(--text-sec);margin-bottom:12px}
+p strong{color:var(--text);font-weight:600}
+ul,ol{padding-left:20px;margin-bottom:14px}
+li{font-size:14px;line-height:1.7;color:var(--text-sec);margin-bottom:4px}
+li strong{color:var(--text)}
+
+/* CALLOUTS */
+.callout{display:flex;gap:12px;padding:14px 16px;border-radius:var(--radius-sm);margin:16px 0;font-size:13px;line-height:1.6}
+.callout-icon{font-size:18px;flex-shrink:0;margin-top:1px}
+.callout.tip{background:var(--green-bg);color:#065F46}
+.callout.note{background:var(--amber-bg);color:#92400E}
+.callout.warn{background:var(--red-bg);color:#991B1B}
+.callout.info{background:#EFF6FF;color:#1E40AF}
+
+/* STEPS */
+.steps{display:flex;flex-direction:column;gap:12px;margin:16px 0}
+.step-card{display:flex;gap:14px;background:var(--white);border-radius:var(--radius-sm);padding:14px 16px;box-shadow:var(--shadow)}
+.step-num{width:28px;height:28px;background:var(--navy);color:var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:15px;flex-shrink:0;margin-top:1px}
+.step-body{flex:1}
+.step-title{font-weight:700;font-size:14px;color:var(--navy);margin-bottom:4px}
+.step-desc{font-size:13px;color:var(--text-sec);line-height:1.6}
+
+/* TABLE */
+.ftable{width:100%;border-collapse:collapse;margin:16px 0;font-size:13px}
+.ftable th{background:var(--navy);color:var(--gold);font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:.8px;padding:10px 14px;text-align:left;font-weight:400}
+.ftable td{padding:10px 14px;border-bottom:1px solid var(--light-gray);color:var(--text-sec);vertical-align:top;line-height:1.5}
+.ftable tr:last-child td{border-bottom:none}
+.ftable tr:nth-child(even) td{background:var(--off-white)}
+.ftable td strong{color:var(--text)}
+
+/* TAGS */
+.tag{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;text-transform:uppercase;letter-spacing:.3px;margin:2px 3px 2px 0}
+.tag-hot{background:var(--green-bg);color:#059669}
+.tag-caution{background:var(--red-bg);color:var(--red)}
+.tag-captain{background:var(--gold-dim);color:var(--gold)}
+.tag-singles{background:#7C3AED22;color:#7C3AED}
+.tag-ad{background:#3B82F622;color:#3B82F6}
+.tag-deuce{background:#10B98122;color:#10B981}
+.tag-rating{background:var(--navy);color:var(--gold)}
+.tag-added{background:#6366F122;color:#6366F1}
+
+/* CONFIDENCE */
+.conf-demo{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}
+.conf-pill{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:600}
+.conf-pill.green{background:var(--green-bg);color:#059669}
+.conf-pill.amber{background:var(--amber-bg);color:#D97706}
+.conf-pill.red{background:var(--red-bg);color:var(--red)}
+.conf-dot{width:9px;height:9px;border-radius:50%}
+
+/* CODE */
+code{font-family:'Menlo','Courier New',monospace;font-size:12px;background:#F1F5F9;padding:2px 6px;border-radius:4px;color:#334155}
+pre{background:#0F172A;border-radius:var(--radius-sm);padding:16px;margin:14px 0;overflow-x:auto}
+pre code{background:none;padding:0;color:#94A3B8;font-size:12px;line-height:1.7}
+
+/* FAQ */
+.faq-item{margin-bottom:20px}
+.faq-q{font-weight:700;font-size:14px;color:var(--navy);margin-bottom:6px}
+.faq-a{font-size:14px;color:var(--text-sec);line-height:1.7}
+
+/* BACK TO TOP */
+.back-top{position:fixed;bottom:28px;right:24px;width:38px;height:38px;background:var(--navy);color:var(--gold);border:none;border-radius:50%;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.2);transition:all .15s;z-index:100}
+.back-top:hover{background:var(--navy-mid);transform:translateY(-2px)}
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <a class="topnav-logo" href="../">
+    <div class="topnav-icon">&#127934;</div>
+    <span class="topnav-title">LINEUP <span>OPTIMIZER</span></span>
+  </a>
+  <a class="topnav-appbtn" href="../">Open App &#8599;</a>
+</nav>
+
+<div class="layout">
+
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-heading">Getting Started</div>
+      <a class="sidebar-link active" href="#introduction">Introduction</a>
+      <a class="sidebar-link" href="#how-to-use">How to Use the App</a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-heading">Features</div>
+      <a class="sidebar-link" href="#roster">Building Your Roster</a>
+      <a class="sidebar-link" href="#partnerships">Partnerships</a>
+      <a class="sidebar-link" href="#opponent">Opponent Lineup</a>
+      <a class="sidebar-link" href="#generating">Generating a Lineup</a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-heading">Reading Results</div>
+      <a class="sidebar-link" href="#results">The Results Panel</a>
+      <a class="sidebar-link" href="#confidence">Confidence Scores</a>
+      <a class="sidebar-link" href="#warnings">Warnings &amp; Notes</a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-heading">Algorithm</div>
+      <a class="sidebar-link" href="#algorithm">How the Optimizer Works</a>
+      <a class="sidebar-link" href="#scoring">Scoring Breakdown</a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-heading">Reference</div>
+      <a class="sidebar-link" href="#tags">Player Tags</a>
+      <a class="sidebar-link" href="#faq">FAQ &amp; Tips</a>
+    </div>
+  </aside>
+
+  <main class="content">
+
+    <!-- INTRODUCTION -->
+    <section class="doc-section" id="introduction">
+      <h1 class="doc-title">Tennis Lineup Optimizer</h1>
+      <p class="doc-subtitle">A smart lineup tool for USTA tennis captains. Enter your roster, mark who's available, add opponent ratings, and get the optimal lineup in seconds — built around real match data, partnership history, and court-side fit.</p>
+
+      <div class="callout info">
+        <span class="callout-icon">&#9432;</span>
+        <div>Works on any phone or desktop — no install needed. All data is stored locally in your browser.</div>
+      </div>
+
+      <h3 class="subsection">What it does</h3>
+      <p>The optimizer evaluates every valid player combination and picks the lineup most likely to win the most lines. It accounts for:</p>
+      <ul>
+        <li><strong>USTA dynamic ratings</strong> — the official estimated rating for each player</li>
+        <li><strong>Win/loss records</strong> — current and prior season performance</li>
+        <li><strong>Partnership history</strong> — how doubles pairs have actually performed together</li>
+        <li><strong>Court side preference</strong> — Ad vs. Deuce side fit</li>
+        <li><strong>Opponent scouting</strong> — optional ratings for each opponent player</li>
+        <li><strong>Singles capability</strong> — only players you flag as singles-capable are placed in singles lines</li>
+      </ul>
+
+      <h3 class="subsection">Format</h3>
+      <p>Designed for the standard USTA adult format: <strong>2 singles lines (S1, S2)</strong> and <strong>3 doubles lines (D1, D2, D3)</strong>. Eight players are placed total.</p>
+    </section>
+
+    <!-- HOW TO USE -->
+    <section class="doc-section" id="how-to-use">
+      <h2 class="section-title"><span class="sec-icon">&#127919;</span> How to Use the App</h2>
+      <div class="section-divider"></div>
+
+      <div class="steps">
+        <div class="step-card">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-title">Configure your team</div>
+            <div class="step-desc">Tap the <strong>gear icon</strong> in the top right to set your team name, level (e.g. 4.0 Women's), and season year. This personalizes the header and record labels.</div>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">Build your roster</div>
+            <div class="step-desc">Tap <strong>+ Add Player</strong> to add each player. Paste a TennisRecord URL to auto-fill their name and rating. All players are saved in your browser and persist between sessions.</div>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-title">Mark who's available</div>
+            <div class="step-desc">All players are selected by default. Tap any player to toggle them unavailable. Only available players are considered in the lineup.</div>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <div class="step-title">Enter the opponent lineup (optional)</div>
+            <div class="step-desc">Use <strong>Full Scouting</strong> to enter opponent names and ratings, or <strong>Quick Mode</strong> to skip. You can paste a full roster at once using <strong>Paste Opponent Roster</strong>.</div>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-num">5</div>
+          <div class="step-body">
+            <div class="step-title">Generate and save</div>
+            <div class="step-desc">Tap <strong>Generate Optimal Lineup</strong>. Review the results, check alternatives, then tap <strong>Save / Print Lineup</strong> to export as a PDF or screenshot.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout tip">
+        <span class="callout-icon">&#10024;</span>
+        <div><strong>Tip:</strong> You need at least 8 available players and at least 2 marked as singles-capable to generate a lineup.</div>
+      </div>
+    </section>
+
+    <!-- ROSTER -->
+    <section class="doc-section" id="roster">
+      <h2 class="section-title"><span class="sec-icon">&#128101;</span> Building Your Roster</h2>
+      <div class="section-divider"></div>
+
+      <p>The roster starts empty — add your players once and they're saved permanently in your browser.</p>
+
+      <h3 class="subsection">Adding a player</h3>
+      <p>Tap <strong>+ Add Player</strong>. The fastest way is to paste a <strong>TennisRecord.com</strong> profile URL — the app fetches the player's name and dynamic rating automatically. Then fill in:</p>
+
+      <table class="ftable">
+        <tr><th>Field</th><th>What to enter</th></tr>
+        <tr><td><strong>Dynamic Rating</strong></td><td>Auto-filled from TennisRecord, or enter manually (e.g. 3.72).</td></tr>
+        <tr><td><strong>Preferred Side</strong></td><td>Ad (left court), Deuce (right court), or Flexible. Used for side-fit scoring.</td></tr>
+        <tr><td><strong>Primary Line</strong></td><td>Doubles, Singles, or Both. Only players set to Singles or Both can be placed at S1/S2.</td></tr>
+        <tr><td><strong>Win % estimate</strong></td><td>Your best guess at their win rate at this level (0–100). Used as a tiebreaker in scoring.</td></tr>
+        <tr><td><strong>Current / Prior Season W-L</strong></td><td>Match record for the current and previous year. Shown on the player card and factored into scoring.</td></tr>
+      </table>
+
+      <h3 class="subsection">Removing a player</h3>
+      <p>Tap the <strong>&times;</strong> button in the top-right corner of any player card and confirm. The player is removed from the roster and any partnerships involving them are also removed.</p>
+
+      <h3 class="subsection">Player profile</h3>
+      <p>Tap a player's name (or the <span style="color:var(--gold)">ⓘ</span> icon) to open a profile sheet showing their season records, partnership history, and player patterns.</p>
+
+      <div class="callout note">
+        <span class="callout-icon">&#9888;</span>
+        <div>Player data is saved to your browser's local storage. It persists on the same device but won't sync to teammates' phones automatically.</div>
+      </div>
+    </section>
+
+    <!-- PARTNERSHIPS -->
+    <section class="doc-section" id="partnerships">
+      <h2 class="section-title"><span class="sec-icon">&#129309;</span> Partnerships</h2>
+      <div class="section-divider"></div>
+
+      <p>Partnership data is one of the most powerful inputs to the optimizer. A pair with a strong track record gets a significant scoring bonus; pairs flagged as Avoid are heavily penalized.</p>
+
+      <h3 class="subsection">Adding a partnership</h3>
+      <p>Tap <strong>Partnerships</strong>, select two players, enter their combined wins and losses, choose a trend, and add optional notes. If a partnership already exists for that pair, saving replaces it.</p>
+
+      <table class="ftable">
+        <tr><th>Trend</th><th>Meaning</th><th>Score effect</th></tr>
+        <tr><td><strong>Trending Up &#9650;</strong></td><td>Recent results are better than their historical average</td><td>+12 pts</td></tr>
+        <tr><td><strong>Stable &#9679;</strong></td><td>Consistent, no strong directional change</td><td>0 pts</td></tr>
+        <tr><td><strong>Trending Down &#9660;</strong></td><td>Recent results are worse than average</td><td>−8 pts</td></tr>
+      </table>
+
+      <h3 class="subsection">Flagging an Avoid pair</h3>
+      <p>Check <strong>Flag as Avoid</strong> when saving a partnership to mark two players as incompatible. The optimizer will heavily penalize this pairing (−120 pts) and a red warning will appear if they end up in the same doubles line.</p>
+
+      <div class="callout tip">
+        <span class="callout-icon">&#10024;</span>
+        <div><strong>Captain tip:</strong> Update partnership records after each match weekend so the optimizer learns from your team's actual results over the season.</div>
+      </div>
+    </section>
+
+    <!-- OPPONENT -->
+    <section class="doc-section" id="opponent">
+      <h2 class="section-title"><span class="sec-icon">&#128269;</span> Opponent Lineup</h2>
+      <div class="section-divider"></div>
+
+      <h3 class="subsection">Full Scouting vs. Quick Mode</h3>
+      <p><strong>Full Scouting</strong> lets you enter opponent names and ratings per line. The optimizer matches your players against specific opponents to maximize rating edges. <strong>Quick Mode</strong> skips this and optimizes based on your team's internal strengths only.</p>
+
+      <h3 class="subsection">Pasting a roster</h3>
+      <p>Tap <strong>Paste Opponent Roster</strong> and paste in any format:</p>
+      <ul>
+        <li>Plain list: <code>Jane Smith 3.80</code> — sorted by rating and auto-assigned</li>
+        <li>Labeled: <code>S1: Alice Brown 3.75</code> or <code>D1: Carol Davis 3.68 / Eve Wilson 3.65</code></li>
+        <li>TennisRecord URLs — ratings fetched automatically</li>
+      </ul>
+
+      <h3 class="subsection">Linking opponent profiles</h3>
+      <p>Tap the <strong>&#128279;</strong> icon next to any opponent slot to add a TennisRecord URL. Their name in the results will become a clickable link to their full profile.</p>
+    </section>
+
+    <!-- GENERATING -->
+    <section class="doc-section" id="generating">
+      <h2 class="section-title"><span class="sec-icon">&#9889;</span> Generating a Lineup</h2>
+      <div class="section-divider"></div>
+
+      <p>Once 8+ players are available the <strong>Generate Optimal Lineup</strong> button activates. The optimizer scores every valid combination and returns the top 5. Results appear below the button with the page scrolling automatically.</p>
+
+      <h3 class="subsection">Minimum requirements</h3>
+      <ul>
+        <li>At least <strong>8 available players</strong></li>
+        <li>At least <strong>2 players</strong> with Primary Line set to Singles or Both</li>
+      </ul>
+
+      <div class="callout warn">
+        <span class="callout-icon">&#9888;</span>
+        <div>If fewer than 2 singles-capable players are available, a message will prompt you to mark at least 2 players as singles-eligible before generating.</div>
+      </div>
+    </section>
+
+    <!-- RESULTS -->
+    <section class="doc-section" id="results">
+      <h2 class="section-title"><span class="sec-icon">&#127942;</span> The Results Panel</h2>
+      <div class="section-divider"></div>
+
+      <p>Each lineup shows a <strong>Match Header</strong> with overall confidence, five line cards (S1, S2, D1, D2, D3), any warnings, and up to 3 alternative lineups.</p>
+
+      <h3 class="subsection">Line card anatomy</h3>
+      <table class="ftable">
+        <tr><th>Element</th><th>What it means</th></tr>
+        <tr><td><strong>Rating edge badge</strong></td><td>Your player's (or pair's average) rating vs. the opponent's. Green = your advantage, red = opponent's advantage, amber = even.</td></tr>
+        <tr><td><strong>Confidence label</strong></td><td>Favorable / Competitive / Tough — see Confidence Scores below.</td></tr>
+        <tr><td><strong>Matchup display</strong></td><td>Your player(s) on the left, opponent on the right. Opponent names link to TennisRecord if a URL was provided.</td></tr>
+        <tr><td><strong>Reasoning text</strong></td><td>Why this placement was chosen — partnership record, trend, side fit, form.</td></tr>
+      </table>
+
+      <h3 class="subsection">Court side tags</h3>
+      <p>
+        <span class="tag tag-ad">Ad</span> Left court &nbsp;
+        <span class="tag tag-deuce">Deu</span> Right court &nbsp;
+        <span class="tag tag-added" style="background:#8B5CF622;color:#8B5CF6">Flex</span> Either side
+      </p>
+
+      <h3 class="subsection">Alternative lineups</h3>
+      <p>Up to 3 alternatives appear below the main result, each showing how many optimizer points it scores below the top choice — useful when availability changes or the captain wants a different approach.</p>
+    </section>
+
+    <!-- CONFIDENCE -->
+    <section class="doc-section" id="confidence">
+      <h2 class="section-title"><span class="sec-icon">&#128200;</span> Confidence Scores</h2>
+      <div class="section-divider"></div>
+
+      <p>Every line shows a confidence indicator. It's a calculated estimate based on rating gaps and win/loss history — not a guarantee.</p>
+
+      <div class="conf-demo">
+        <div class="conf-pill green"><div class="conf-dot" style="background:var(--green)"></div> Favorable (65%+)</div>
+        <div class="conf-pill amber"><div class="conf-dot" style="background:var(--amber)"></div> Competitive (45–64%)</div>
+        <div class="conf-pill red"><div class="conf-dot" style="background:var(--red)"></div> Tough (&lt;45%)</div>
+      </div>
+
+      <h3 class="subsection">Singles confidence formula</h3>
+      <p><code>50 + (rating edge × 80) + (win% × 30)</code>, clamped to 20–90%.</p>
+
+      <h3 class="subsection">Doubles confidence formula</h3>
+      <p><code>50 + (rating edge × 60) + (partnership win% × 25)</code>, with a −30 penalty if the pair has an Avoid flag.</p>
+
+      <div class="callout note">
+        <span class="callout-icon">&#9888;</span>
+        <div>Confidence is most meaningful in Full Scouting mode with opponent ratings entered. In Quick Mode all opponents default to 3.70, so confidence primarily reflects your team's internal strengths.</div>
+      </div>
+    </section>
+
+    <!-- WARNINGS -->
+    <section class="doc-section" id="warnings">
+      <h2 class="section-title"><span class="sec-icon">&#9888;</span> Warnings &amp; Notes</h2>
+      <div class="section-divider"></div>
+
+      <table class="ftable">
+        <tr><th>Type</th><th>Color</th><th>Triggered when</th></tr>
+        <tr><td><strong>Red warning</strong></td><td style="color:var(--red)">&#9632; Red</td><td>An Avoid-flagged pair appears in doubles</td></tr>
+        <tr><td><strong>Amber caution</strong></td><td style="color:#D97706">&#9632; Amber</td><td>Both players in a doubles pair have a win rate below 35% and no partnership history</td></tr>
+        <tr><td><strong>Green note</strong></td><td style="color:#059669">&#9632; Green</td><td>A doubles pair is undefeated together, or a partnership is trending upward</td></tr>
+      </table>
+
+      <div class="callout tip">
+        <span class="callout-icon">&#10024;</span>
+        <div>Warnings are informational — they don't block the lineup. The captain always has the final call.</div>
+      </div>
+    </section>
+
+    <!-- ALGORITHM -->
+    <section class="doc-section" id="algorithm">
+      <h2 class="section-title"><span class="sec-icon">&#9881;</span> How the Optimizer Works</h2>
+      <div class="section-divider"></div>
+
+      <p>The optimizer uses a <strong>brute-force combinatorial search</strong> — it scores every valid lineup and returns the top 5. No machine learning, no black box. Every score is deterministic and explainable.</p>
+
+      <div class="steps">
+        <div class="step-card">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-title">Identify singles candidates</div>
+            <div class="step-desc">Players with Primary Line set to Singles or Both are sorted by singles score. The top 4–6 are tried as S1/S2 combinations.</div>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">Build the doubles pool</div>
+            <div class="step-desc">Remaining available players are sorted by <code>rating × (0.5 + win%)</code>. The top 12 form the doubles pool to keep computation fast.</div>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-title">Generate all pairings</div>
+            <div class="step-desc">All ways to form 3 pairs from 6 players are enumerated (15 pairings), then all 6 ways to assign those pairs to D1/D2/D3 are tried.</div>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <div class="step-title">Score and rank</div>
+            <div class="step-desc">Each complete lineup is scored by summing the five line scores. The highest-scoring lineup is recommended; the next 4 are shown as alternatives.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout info">
+        <span class="callout-icon">&#9432;</span>
+        <div>The optimizer doesn't lock your best pair into D1. It tries every line assignment — sometimes your strongest pair scores better at D2 to exploit a favorable matchup there.</div>
+      </div>
+    </section>
+
+    <!-- SCORING -->
+    <section class="doc-section" id="scoring">
+      <h2 class="section-title"><span class="sec-icon">&#127919;</span> Scoring Breakdown</h2>
+      <div class="section-divider"></div>
+
+      <h3 class="subsection">Singles line score</h3>
+      <p>Starts from the player's base singles score, then adds:</p>
+      <ul>
+        <li><strong>(player rating − opponent rating) × 40</strong></li>
+        <li><strong>win% × 15</strong></li>
+      </ul>
+
+      <h3 class="subsection">Doubles partnership score</h3>
+      <table class="ftable">
+        <tr><th>Factor</th><th>Points</th></tr>
+        <tr><td>Avoid pair penalty</td><td>−120</td></tr>
+        <tr><td>Partnership win% × 50</td><td>0 – 50</td></tr>
+        <tr><td>Sample size bonus (max 8 matches × 3)</td><td>0 – 24</td></tr>
+        <tr><td>Trending up</td><td>+12</td></tr>
+        <tr><td>Trending down</td><td>−8</td></tr>
+        <tr><td>Perfect side fit (Ad + Deuce)</td><td>+18</td></tr>
+        <tr><td>One flexible player</td><td>+12</td></tr>
+        <tr><td>Both players same preferred side</td><td>−5</td></tr>
+        <tr><td>(Average rating − 3.5) × 30</td><td>varies</td></tr>
+        <tr><td>Average win% × 20</td><td>0 – 20</td></tr>
+      </table>
+
+      <h3 class="subsection">Doubles line score vs. opponent</h3>
+      <p><code>line score = partnership score + (team avg rating − opp avg rating) × 35</code></p>
+      <p>A pair with strong partnership history can overcome a small rating deficit — and a highly-rated pair with no track record may score lower than expected.</p>
+    </section>
+
+    <!-- TAGS -->
+    <section class="doc-section" id="tags">
+      <h2 class="section-title"><span class="sec-icon">&#127991;</span> Player Tags Reference</h2>
+      <div class="section-divider"></div>
+
+      <table class="ftable">
+        <tr><th>Tag</th><th>Meaning</th><th>How it's set</th></tr>
+        <tr><td><span class="tag tag-rating">3.72</span></td><td>USTA dynamic rating</td><td>Entered when adding the player</td></tr>
+        <tr><td><span class="tag tag-captain">CPT</span></td><td>Team captain</td><td>Set in player data</td></tr>
+        <tr><td><span class="tag tag-singles">Singles</span></td><td>Eligible for S1/S2</td><td>Primary Line = Singles or Both</td></tr>
+        <tr><td><span class="tag tag-ad">Ad</span></td><td>Prefers left court</td><td>Preferred Side = Ad</td></tr>
+        <tr><td><span class="tag tag-deuce">Deuce</span></td><td>Prefers right court</td><td>Preferred Side = Deuce</td></tr>
+        <tr><td><span class="tag tag-hot">Hot</span></td><td>≥70% win rate this season (3+ matches)</td><td>Calculated automatically from records</td></tr>
+        <tr><td><span class="tag tag-caution">Caution</span></td><td>≤30% win rate this season (3+ matches)</td><td>Calculated automatically from records</td></tr>
+        <tr><td><span class="tag tag-added">Added</span></td><td>Manually added player</td><td>Set when player is created via + Add Player</td></tr>
+      </table>
+    </section>
+
+    <!-- FAQ -->
+    <section class="doc-section" id="faq">
+      <h2 class="section-title"><span class="sec-icon">&#10067;</span> FAQ &amp; Tips</h2>
+      <div class="section-divider"></div>
+
+      <div class="faq-item">
+        <div class="faq-q">The Generate button is grayed out.</div>
+        <div class="faq-a">You need at least 8 players marked available. Check the count below the roster grid — it tells you exactly how many are selected.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">No players show up as singles candidates.</div>
+        <div class="faq-a">At least 2 players must have Primary Line set to <strong>Singles</strong> or <strong>Both</strong>. Edit their profiles via the player card's <span style="color:var(--gold)">ⓘ</span> info button, or remove and re-add them with the correct line setting.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">The optimizer puts a lower-rated pair at D1 — is that right?</div>
+        <div class="faq-a">Yes, sometimes. If the weakest opponent happens to be at D1, placing a mid-tier but proven pair there while saving your best for D2 can be the higher-scoring strategy overall.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">My players disappeared after clearing my browser.</div>
+        <div class="faq-a">All data is stored in localStorage, which is cleared when you clear your browser history or use private/incognito mode. For a permanent roster, the captain should bookmark the app on a dedicated device or export the lineup before clearing.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Can multiple captains use this on different devices?</div>
+        <div class="faq-a">The app is single-device — there's no sync or cloud storage. The simplest workaround is to designate one device as the "captain's device" and always use that for the official lineup.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Does the app send any data anywhere?</div>
+        <div class="faq-a">No. Everything runs in your browser. The only external requests are optional TennisRecord URL lookups (to fetch ratings), which go through a public CORS proxy. No player data is stored on any server.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">How do I update a player's rating mid-season?</div>
+        <div class="faq-a">Remove the player and re-add them with the updated rating and record. Their partnerships will need to be re-entered. For frequent updates, consider using the TennisRecord URL lookup when adding — it pulls the latest dynamic rating automatically.</div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<button class="back-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Back to top">&#8679;</button>
+
+<script>
+const sections = document.querySelectorAll('.doc-section');
+const links    = document.querySelectorAll('.sidebar-link');
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      links.forEach(l => l.classList.remove('active'));
+      const a = document.querySelector(`.sidebar-link[href="#${e.target.id}"]`);
+      if (a) a.classList.add('active');
+    }
+  });
+}, { rootMargin: '-20% 0px -70% 0px' });
+sections.forEach(s => obs.observe(s));
+</script>
+</body>
+</html>
