@@ -507,6 +507,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--off-white);color:var(--te
       <div class="step-title">OPPONENT LINEUP</div>
     </div>
 
+    <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+      <span style="font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:.4px">Format</span>
+      <div class="mode-toggle" style="margin-bottom:0;flex:1;min-width:220px">
+        <button class="mode-btn active" onclick="setFormat('standard')" id="fmtStandard">2 Singles + 3 Doubles</button>
+        <button class="mode-btn" onclick="setFormat('short')" id="fmtShort">1 Singles + 2 Doubles</button>
+      </div>
+    </div>
     <div class="mode-toggle">
       <button class="mode-btn active" onclick="setMode('full')" id="modeFull">Full Scouting</button>
       <button class="mode-btn" onclick="setMode('quick')" id="modeQuick">Quick (No Opponent Info)</button>
@@ -546,6 +553,7 @@ D2: Fiona Lee 3.62, Grace Kim 3.58"></textarea>
           <input class="opp-url-input" id="opp_s1_url" placeholder="TennisRecord URL (optional)" oninput="updateOppLinkBtn('s1')">
         </div>
       </div>
+      <div id="oppS2Section">
       <div class="opp-divider"></div>
       <div class="opp-section">
         <div class="opp-section-title"><span class="line-badge">S2</span> Singles 2</div>
@@ -560,7 +568,8 @@ D2: Fiona Lee 3.62, Grace Kim 3.58"></textarea>
           <input class="opp-url-input" id="opp_s2_url" placeholder="TennisRecord URL (optional)" oninput="updateOppLinkBtn('s2')">
         </div>
       </div>
-      <div class="opp-divider"></div>
+      <div class="opp-divider" id="oppS2Divider"></div>
+      </div><!-- end oppS2Section -->
       <div class="opp-section">
         <div class="opp-section-title"><span class="line-badge">D1</span> Doubles 1</div>
         <div class="opp-row">
@@ -608,6 +617,7 @@ D2: Fiona Lee 3.62, Grace Kim 3.58"></textarea>
           <input class="opp-url-input" id="opp_d2_p2_url" placeholder="TennisRecord URL (optional)" oninput="updateOppLinkBtn('d2_p2')">
         </div>
       </div>
+      <div id="oppD3Section">
       <div class="opp-divider"></div>
       <div class="opp-section">
         <div class="opp-section-title"><span class="line-badge">D3</span> Doubles 3</div>
@@ -632,6 +642,7 @@ D2: Fiona Lee 3.62, Grace Kim 3.58"></textarea>
           <input class="opp-url-input" id="opp_d3_p2_url" placeholder="TennisRecord URL (optional)" oninput="updateOppLinkBtn('d3_p2')">
         </div>
       </div>
+      </div><!-- end oppD3Section -->
     </div>
   </div>
 
@@ -742,6 +753,7 @@ let PARTNERSHIPS = loadPartnerships();
 // ===================== STATE =====================
 let available = new Set(ROSTER.map(p => p.id));
 let mode = "full";
+let format = "standard"; // "standard" = 2S+3D, "short" = 1S+2D
 
 // ===================== UI INIT =====================
 function init() {
@@ -963,13 +975,14 @@ function selectAll()  { ROSTER.forEach(p => available.add(p.id));  renderRoster(
 function selectNone() { available.clear();                           renderRoster(); updateCount(); }
 
 function updateCount() {
-  const n = available.size;
-  const el = document.getElementById('playerCount');
-  const ok = n >= 8;
+  const n   = available.size;
+  const min = format === 'short' ? 5 : 8;
+  const el  = document.getElementById('playerCount');
+  const ok  = n >= min;
   el.className = 'player-count' + (ok ? '' : ' insufficient');
   el.innerHTML = `<strong>${n}</strong> player${n !== 1 ? 's' : ''} available` +
-    (ok ? ' — ready to generate' : ' — need at least 8');
-  document.getElementById('generateBtn').disabled = n < 8;
+    (ok ? ' — ready to generate' : ` — need at least ${min}`);
+  document.getElementById('generateBtn').disabled = n < min;
 }
 
 function setMode(m) {
@@ -977,6 +990,20 @@ function setMode(m) {
   document.getElementById('modeFull').classList.toggle('active', m === 'full');
   document.getElementById('modeQuick').classList.toggle('active', m === 'quick');
   document.getElementById('oppForm').style.display = m === 'full' ? 'block' : 'none';
+}
+
+function setFormat(f) {
+  format = f;
+  document.getElementById('fmtStandard').classList.toggle('active', f === 'standard');
+  document.getElementById('fmtShort').classList.toggle('active', f === 'short');
+  const hide = f === 'short';
+  document.getElementById('oppS2Section').style.display = hide ? 'none' : 'block';
+  document.getElementById('oppD3Section').style.display = hide ? 'none' : 'block';
+  updateCount();
+  // Clear results when format changes
+  const results = document.getElementById('results');
+  results.classList.remove('visible');
+  results.innerHTML = '';
 }
 
 // ===================== PLAYER MODAL =====================
@@ -1166,6 +1193,10 @@ function permute3(arr) {
   ];
 }
 
+function permute2(arr) {
+  return [[arr[0],arr[1]], [arr[1],arr[0]]];
+}
+
 function combinations(arr, k) {
   if (k === 0) return [[]];
   if (arr.length < k) return [];
@@ -1204,60 +1235,91 @@ function getOpponentData() {
 
 function optimize() {
   const avail = ROSTER.filter(p => available.has(p.id));
-  if (avail.length < 8) return;
-  const opp  = getOpponentData();
-  const oppD = [
-    (opp.d1.p1.rating + opp.d1.p2.rating) / 2,
-    (opp.d2.p1.rating + opp.d2.p2.rating) / 2,
-    (opp.d3.p1.rating + opp.d3.p2.rating) / 2,
-  ];
+  const min   = format === 'short' ? 5 : 8;
+  if (avail.length < min) return;
+  const opp = getOpponentData();
 
   const sCandidates = avail.filter(p => p.singlesCapable).sort((a,b) => b.singlesScore - a.singlesScore);
   let allLineups = [];
 
-  for (let si = 0; si < Math.min(sCandidates.length, 4); si++) {
-    for (let sj = si+1; sj < Math.min(sCandidates.length, 6); sj++) {
-      const s1 = sCandidates[si], s2 = sCandidates[sj];
+  if (format === 'short') {
+    // 1 singles + 2 doubles (4 doubles players)
+    const oppD = [
+      (opp.d1.p1.rating + opp.d1.p2.rating) / 2,
+      (opp.d2.p1.rating + opp.d2.p2.rating) / 2,
+    ];
+    for (let si = 0; si < Math.min(sCandidates.length, 5); si++) {
+      const s1 = sCandidates[si];
       const pool = avail
-        .filter(p => p.id !== s1.id && p.id !== s2.id)
+        .filter(p => p.id !== s1.id)
         .sort((a,b) => (b.rating * (0.5 + b.winPct)) - (a.rating * (0.5 + a.winPct)))
-        .slice(0, 12)
+        .slice(0, 10)
         .map(p => p.id);
-      if (pool.length < 6) continue;
-
-      const groups = pool.length === 6 ? [pool] : combinations(pool, 6);
+      if (pool.length < 4) continue;
+      const groups = pool.length === 4 ? [pool] : combinations(pool, 4);
       for (const group of groups) {
         for (const teams of generatePairings(group)) {
-          for (const perm of permute3(teams)) {
-            const total =
-              scoreSingles(s1.id, opp.s1.rating) +
-              scoreSingles(s2.id, opp.s2.rating) +
-              scoreDoublesVsOpp(perm[0][0], perm[0][1], oppD[0]) +
-              scoreDoublesVsOpp(perm[1][0], perm[1][1], oppD[1]) +
-              scoreDoublesVsOpp(perm[2][0], perm[2][1], oppD[2]);
+          for (const perm of permute2(teams)) {
+            const s1score = scoreSingles(s1.id, opp.s1.rating);
+            const d1score = scoreDoublesVsOpp(perm[0][0], perm[0][1], oppD[0]);
+            const d2score = scoreDoublesVsOpp(perm[1][0], perm[1][1], oppD[1]);
             allLineups.push({
-              s1: s1.id, s2: s2.id,
-              d1: perm[0], d2: perm[1], d3: perm[2],
-              scores: {
-                s1: scoreSingles(s1.id, opp.s1.rating),
-                s2: scoreSingles(s2.id, opp.s2.rating),
-                d1: scoreDoublesVsOpp(perm[0][0], perm[0][1], oppD[0]),
-                d2: scoreDoublesVsOpp(perm[1][0], perm[1][1], oppD[1]),
-                d3: scoreDoublesVsOpp(perm[2][0], perm[2][1], oppD[2]),
-              },
-              total
+              s1: s1.id, s2: null,
+              d1: perm[0], d2: perm[1], d3: null,
+              scores: { s1: s1score, d1: d1score, d2: d2score },
+              total: s1score + d1score + d2score,
             });
           }
         }
       }
     }
+    if (allLineups.length === 0) {
+      alert('Not enough singles-capable players. Mark at least 1 player as Singles or Both.');
+      return;
+    }
+  } else {
+    // 2 singles + 3 doubles (standard)
+    const oppD = [
+      (opp.d1.p1.rating + opp.d1.p2.rating) / 2,
+      (opp.d2.p1.rating + opp.d2.p2.rating) / 2,
+      (opp.d3.p1.rating + opp.d3.p2.rating) / 2,
+    ];
+    for (let si = 0; si < Math.min(sCandidates.length, 4); si++) {
+      for (let sj = si+1; sj < Math.min(sCandidates.length, 6); sj++) {
+        const s1 = sCandidates[si], s2 = sCandidates[sj];
+        const pool = avail
+          .filter(p => p.id !== s1.id && p.id !== s2.id)
+          .sort((a,b) => (b.rating * (0.5 + b.winPct)) - (a.rating * (0.5 + a.winPct)))
+          .slice(0, 12)
+          .map(p => p.id);
+        if (pool.length < 6) continue;
+        const groups = pool.length === 6 ? [pool] : combinations(pool, 6);
+        for (const group of groups) {
+          for (const teams of generatePairings(group)) {
+            for (const perm of permute3(teams)) {
+              const s1score = scoreSingles(s1.id, opp.s1.rating);
+              const s2score = scoreSingles(s2.id, opp.s2.rating);
+              const d1score = scoreDoublesVsOpp(perm[0][0], perm[0][1], oppD[0]);
+              const d2score = scoreDoublesVsOpp(perm[1][0], perm[1][1], oppD[1]);
+              const d3score = scoreDoublesVsOpp(perm[2][0], perm[2][1], oppD[2]);
+              allLineups.push({
+                s1: s1.id, s2: s2.id,
+                d1: perm[0], d2: perm[1], d3: perm[2],
+                scores: { s1: s1score, s2: s2score, d1: d1score, d2: d2score, d3: d3score },
+                total: s1score + s2score + d1score + d2score + d3score,
+              });
+            }
+          }
+        }
+      }
+    }
+    if (allLineups.length === 0) {
+      alert('Not enough singles-capable players. Mark at least 2 players as Singles or Both.');
+      return;
+    }
   }
 
   allLineups.sort((a,b) => b.total - a.total);
-  if (allLineups.length === 0) {
-    alert('Not enough singles-capable players. Add players and mark at least 2 as Singles or Both.');
-    return;
-  }
   renderResults(allLineups.slice(0, 5), opp);
 }
 
@@ -1277,10 +1339,10 @@ function renderResults(lineups, opp) {
     </div>`;
 
   html += renderSinglesCard('S1', best.s1, opp.s1, best.scores.s1);
-  html += renderSinglesCard('S2', best.s2, opp.s2, best.scores.s2);
+  if (format === 'standard') html += renderSinglesCard('S2', best.s2, opp.s2, best.scores.s2);
   html += renderDoublesCard('D1', best.d1, opp.d1, best.scores.d1);
   html += renderDoublesCard('D2', best.d2, opp.d2, best.scores.d2);
-  html += renderDoublesCard('D3', best.d3, opp.d3, best.scores.d3);
+  if (format === 'standard') html += renderDoublesCard('D3', best.d3, opp.d3, best.scores.d3);
   html += renderWarnings(best);
 
   if (lineups.length > 1) {
@@ -1296,10 +1358,9 @@ function renderResults(lineups, opp) {
             <div class="alt-score">${diff > 0 ? '-'+diff+' pts' : 'Same'}</div>
           </div>
           <div class="alt-lines">
-            S1: ${ROSTER.find(r=>r.id===alt.s1)?.name} &middot; S2: ${ROSTER.find(r=>r.id===alt.s2)?.name}<br>
+            S1: ${ROSTER.find(r=>r.id===alt.s1)?.name}${format === 'standard' ? ' &middot; S2: ' + ROSTER.find(r=>r.id===alt.s2)?.name : ''}<br>
             D1: ${pn(alt.d1[0])} + ${pn(alt.d1[1])} &middot;
-            D2: ${pn(alt.d2[0])} + ${pn(alt.d2[1])} &middot;
-            D3: ${pn(alt.d3[0])} + ${pn(alt.d3[1])}
+            D2: ${pn(alt.d2[0])} + ${pn(alt.d2[1])}${format === 'standard' ? ' &middot; D3: ' + pn(alt.d3[0]) + ' + ' + pn(alt.d3[1]) : ''}
           </div>
         </div>`;
     }
