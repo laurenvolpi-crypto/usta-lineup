@@ -772,6 +772,8 @@ let PARTNERSHIPS = loadPartnerships();
 let available = new Set(ROSTER.map(p => p.id));
 let mode = "full";
 let format = "standard"; // "standard" = 2S+3D, "short" = 1S+2D
+const oppUrlCache = {}; // url → { record:{w,l}, adultWinPct }
+const _oppFetchTimers = {};
 
 // ===================== UI INIT =====================
 function init() {
@@ -1238,20 +1240,22 @@ function scorePartnership(id1, id2) {
   return score;
 }
 
-function scoreSingles(playerId, oppRating) {
+function scoreSingles(playerId, oppRating, oppAdultWinPct) {
   const p = ROSTER.find(r => r.id === playerId);
   let score = p.singlesScore || 30;
   if (oppRating) score += (p.rating - oppRating) * 40;
   score += (p.winPct || 0.5) * 15;
+  if (oppAdultWinPct != null) score -= (oppAdultWinPct - 0.5) * 25;
   return score;
 }
 
-function scoreDoublesVsOpp(id1, id2, oppAvgRating) {
+function scoreDoublesVsOpp(id1, id2, oppAvgRating, oppAvgAdultWinPct) {
   const p1 = ROSTER.find(r => r.id === id1);
   const p2 = ROSTER.find(r => r.id === id2);
   const teamAvg = (p1.rating + p2.rating) / 2;
   let score = scorePartnership(id1, id2);
   if (oppAvgRating) score += (teamAvg - oppAvgRating) * 35;
+  if (oppAvgAdultWinPct != null) score -= (oppAvgAdultWinPct - 0.5) * 20;
   return score;
 }
 
@@ -1303,15 +1307,16 @@ function getOpponentData() {
   const v = id => document.getElementById(id)?.value || '';
   const n = id => parseFloat(v(id)) || null;
   const u = key => v('opp_'+key+'_url').trim();
+  const q = key => { const url = u(key); return url ? (oppUrlCache[url]?.adultWinPct ?? null) : null; };
   return {
-    s1: { name: v('opp_s1_name')||'Opponent S1', rating: n('opp_s1_rating')||3.70, url: u('s1') },
-    s2: { name: v('opp_s2_name')||'Opponent S2', rating: n('opp_s2_rating')||3.70, url: u('s2') },
-    d1: { p1:{ name:v('opp_d1_p1_name')||'Opp', rating:n('opp_d1_p1_rating')||3.70, url:u('d1_p1') },
-          p2:{ name:v('opp_d1_p2_name')||'Opp', rating:n('opp_d1_p2_rating')||3.70, url:u('d1_p2') }},
-    d2: { p1:{ name:v('opp_d2_p1_name')||'Opp', rating:n('opp_d2_p1_rating')||3.70, url:u('d2_p1') },
-          p2:{ name:v('opp_d2_p2_name')||'Opp', rating:n('opp_d2_p2_rating')||3.70, url:u('d2_p2') }},
-    d3: { p1:{ name:v('opp_d3_p1_name')||'Opp', rating:n('opp_d3_p1_rating')||3.70, url:u('d3_p1') },
-          p2:{ name:v('opp_d3_p2_name')||'Opp', rating:n('opp_d3_p2_rating')||3.70, url:u('d3_p2') }},
+    s1: { name: v('opp_s1_name')||'Opponent S1', rating: n('opp_s1_rating')||3.70, url: u('s1'), adultWinPct: q('s1') },
+    s2: { name: v('opp_s2_name')||'Opponent S2', rating: n('opp_s2_rating')||3.70, url: u('s2'), adultWinPct: q('s2') },
+    d1: { p1:{ name:v('opp_d1_p1_name')||'Opp', rating:n('opp_d1_p1_rating')||3.70, url:u('d1_p1'), adultWinPct:q('d1_p1') },
+          p2:{ name:v('opp_d1_p2_name')||'Opp', rating:n('opp_d1_p2_rating')||3.70, url:u('d1_p2'), adultWinPct:q('d1_p2') }},
+    d2: { p1:{ name:v('opp_d2_p1_name')||'Opp', rating:n('opp_d2_p1_rating')||3.70, url:u('d2_p1'), adultWinPct:q('d2_p1') },
+          p2:{ name:v('opp_d2_p2_name')||'Opp', rating:n('opp_d2_p2_rating')||3.70, url:u('d2_p2'), adultWinPct:q('d2_p2') }},
+    d3: { p1:{ name:v('opp_d3_p1_name')||'Opp', rating:n('opp_d3_p1_rating')||3.70, url:u('d3_p1'), adultWinPct:q('d3_p1') },
+          p2:{ name:v('opp_d3_p2_name')||'Opp', rating:n('opp_d3_p2_rating')||3.70, url:u('d3_p2'), adultWinPct:q('d3_p2') }},
   };
 }
 
@@ -1324,12 +1329,18 @@ function optimize() {
   const sCandidates = avail.filter(p => p.singlesCapable).sort((a,b) => b.singlesScore - a.singlesScore);
   let allLineups = [];
 
+  function avgDWinPct(p1, p2) {
+    if (p1.adultWinPct == null && p2.adultWinPct == null) return null;
+    return ((p1.adultWinPct ?? p2.adultWinPct) + (p2.adultWinPct ?? p1.adultWinPct)) / 2;
+  }
+
   if (format === 'short') {
     // 1 singles + 2 doubles (4 doubles players)
     const oppD = [
       (opp.d1.p1.rating + opp.d1.p2.rating) / 2,
       (opp.d2.p1.rating + opp.d2.p2.rating) / 2,
     ];
+    const oppDQ = [avgDWinPct(opp.d1.p1, opp.d1.p2), avgDWinPct(opp.d2.p1, opp.d2.p2)];
     for (let si = 0; si < Math.min(sCandidates.length, 5); si++) {
       const s1 = sCandidates[si];
       const pool = avail
@@ -1342,9 +1353,9 @@ function optimize() {
       for (const group of groups) {
         for (const teams of generatePairings(group)) {
           for (const perm of permute2(teams)) {
-            const s1score = scoreSingles(s1.id, opp.s1.rating);
-            const d1score = scoreDoublesVsOpp(perm[0][0], perm[0][1], oppD[0]);
-            const d2score = scoreDoublesVsOpp(perm[1][0], perm[1][1], oppD[1]);
+            const s1score = scoreSingles(s1.id, opp.s1.rating, opp.s1.adultWinPct);
+            const d1score = scoreDoublesVsOpp(perm[0][0], perm[0][1], oppD[0], oppDQ[0]);
+            const d2score = scoreDoublesVsOpp(perm[1][0], perm[1][1], oppD[1], oppDQ[1]);
             allLineups.push({
               s1: s1.id, s2: null,
               d1: perm[0], d2: perm[1], d3: null,
@@ -1366,6 +1377,11 @@ function optimize() {
       (opp.d2.p1.rating + opp.d2.p2.rating) / 2,
       (opp.d3.p1.rating + opp.d3.p2.rating) / 2,
     ];
+    const oppDQ = [
+      avgDWinPct(opp.d1.p1, opp.d1.p2),
+      avgDWinPct(opp.d2.p1, opp.d2.p2),
+      avgDWinPct(opp.d3.p1, opp.d3.p2),
+    ];
     for (let si = 0; si < Math.min(sCandidates.length, 4); si++) {
       for (let sj = si+1; sj < Math.min(sCandidates.length, 6); sj++) {
         const s1 = sCandidates[si], s2 = sCandidates[sj];
@@ -1379,11 +1395,11 @@ function optimize() {
         for (const group of groups) {
           for (const teams of generatePairings(group)) {
             for (const perm of permute3(teams)) {
-              const s1score = scoreSingles(s1.id, opp.s1.rating);
-              const s2score = scoreSingles(s2.id, opp.s2.rating);
-              const d1score = scoreDoublesVsOpp(perm[0][0], perm[0][1], oppD[0]);
-              const d2score = scoreDoublesVsOpp(perm[1][0], perm[1][1], oppD[1]);
-              const d3score = scoreDoublesVsOpp(perm[2][0], perm[2][1], oppD[2]);
+              const s1score = scoreSingles(s1.id, opp.s1.rating, opp.s1.adultWinPct);
+              const s2score = scoreSingles(s2.id, opp.s2.rating, opp.s2.adultWinPct);
+              const d1score = scoreDoublesVsOpp(perm[0][0], perm[0][1], oppD[0], oppDQ[0]);
+              const d2score = scoreDoublesVsOpp(perm[1][0], perm[1][1], oppD[1], oppDQ[1]);
+              const d3score = scoreDoublesVsOpp(perm[2][0], perm[2][1], oppD[2], oppDQ[2]);
               allLineups.push({
                 s1: s1.id, s2: s2.id,
                 d1: perm[0], d2: perm[1], d3: perm[2],
@@ -1622,6 +1638,8 @@ function toggleOppUrl(key, event) {
 function updateOppLinkBtn(key) {
   const url = document.getElementById('opp_'+key+'_url').value.trim();
   document.getElementById('opp_'+key+'_link_btn').classList.toggle('active', url.length > 0);
+  clearTimeout(_oppFetchTimers[key]);
+  if (url.length > 20) _oppFetchTimers[key] = setTimeout(() => fetchOppQuality(key), 900);
 }
 
 function extractPlayer(text) {
@@ -1637,23 +1655,92 @@ function fillField(id, value) {
   if (el) el.value = (value !== undefined && value !== null) ? value : '';
 }
 
-async function fetchTennisRecordRating(url) {
+function extractAdultMatches(html) {
+  let wins = 0, losses = 0;
+  const winOppRatings = [], lossOppRatings = [];
+  const rows = html.match(/<tr[\s\S]*?<\/tr>/gi) || [];
+  let inAdult = true;
+  for (const row of rows) {
+    const text = row.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    if (/colspan\s*=\s*["']?\d+/i.test(row) && text.length < 120) {
+      const lower = text.toLowerCase();
+      if (/\bcombo\b/.test(lower) || /\bmixed\b/.test(lower)) { inAdult = false; continue; }
+      if (/\badult\b/.test(lower) || /\bntrp\b/.test(lower) || /\bsenior\b/.test(lower)) { inAdult = true; continue; }
+    }
+    if (!inAdult) continue;
+    const isWin  = /class="[^"]*\bwin\b/i.test(row)  || />\s*W\s*<\/(td|th)>/i.test(row);
+    const isLoss = /class="[^"]*\bloss\b/i.test(row) || />\s*L\s*<\/(td|th)>/i.test(row);
+    if (!isWin && !isLoss) continue;
+    const oppRating = [...row.matchAll(/\b([234]\.\d{2,4})\b/g)]
+      .map(m => parseFloat(m[1])).find(r => r >= 2.5 && r <= 4.5) ?? null;
+    if (isWin)  { wins++;   if (oppRating) winOppRatings.push(oppRating); }
+    else        { losses++; if (oppRating) lossOppRatings.push(oppRating); }
+  }
+  return { wins, losses, winOppRatings, lossOppRatings };
+}
+
+async function fetchTennisRecordData(url) {
   try {
     const proxy = 'https://api.allorigins.win/get?url=' + encodeURIComponent(url);
-    const resp  = await fetch(proxy);
-    const data  = await resp.json();
-    const html  = data.contents || '';
-    const rm    = html.match(/(\d\.\d{4})/);
-    if (!rm) return null;
-    const rating = parseFloat(rm[1]);
-    const nm = url.match(/playername=([^&]+)/i);
-    let name = nm ? decodeURIComponent(nm[1]).replace(/\+/g, ' ') : null;
-    if (!name) {
-      const tm = html.match(/<title[^>]*>([^<|]+)/i);
-      name = tm ? tm[1].trim() : 'Unknown';
+    const resp = await fetch(proxy);
+    const data = await resp.json();
+    const raw  = data.contents || '';
+    const html = raw.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<style[\s\S]*?<\/style>/gi, '');
+    const nm   = url.match(/playername=([^&]+)/i);
+    let name   = nm ? decodeURIComponent(nm[1]).replace(/\+/g, ' ') : null;
+    if (!name) { const t = html.match(/<title[^>]*>([^<|]+)/i); name = t ? t[1].trim() : 'Unknown'; }
+    let rating = null;
+    for (const m of [...html.matchAll(/(\d\.\d{4})/g)]) {
+      const ctx = html.slice(Math.max(0, m.index - 300), m.index).toLowerCase();
+      if (!ctx.includes('combo') && !ctx.includes('mixed')) { rating = parseFloat(m[1]); break; }
     }
-    return { name, rating };
+    if (!rating) { const rm = html.match(/(\d\.\d{4})/); if (rm) rating = parseFloat(rm[1]); }
+    const { wins, losses, winOppRatings, lossOppRatings } = extractAdultMatches(html);
+    const total = wins + losses;
+    let adultWinPct = total > 0 ? wins / total : null;
+    const allOppR = [...winOppRatings, ...lossOppRatings];
+    if (adultWinPct !== null && allOppR.length >= 3) {
+      const avgOpp  = allOppR.reduce((a, b) => a + b, 0) / allOppR.length;
+      const avgWOpp = winOppRatings.length > 0 ? winOppRatings.reduce((a, b) => a + b, 0) / winOppRatings.length : avgOpp;
+      adultWinPct = Math.min(0.95, Math.max(0.05, adultWinPct + (avgWOpp - avgOpp) * 0.5));
+    }
+    return { name, rating, record: { w: wins, l: losses }, adultWinPct };
   } catch(e) { return null; }
+}
+
+const fetchTennisRecordRating = fetchTennisRecordData;
+
+async function fetchOppQuality(key) {
+  const urlEl = document.getElementById('opp_' + key + '_url');
+  if (!urlEl) return;
+  const url = urlEl.value.trim();
+  if (!url || !url.includes('tennisrecord')) return;
+  let info = document.getElementById('opp_info_' + key);
+  if (!info) {
+    info = document.createElement('div');
+    info.id = 'opp_info_' + key;
+    info.style.cssText = 'padding:2px 0 6px 56px;font-size:11px;';
+    const urlRow = document.getElementById('opp_' + key + '_url_row');
+    if (urlRow) urlRow.insertAdjacentElement('afterend', info);
+  }
+  info.innerHTML = '<span style="color:var(--text-light)">Fetching adult record…</span>';
+  const fetched = await fetchTennisRecordData(url);
+  if (!fetched) { info.innerHTML = ''; return; }
+  oppUrlCache[url] = { record: fetched.record, adultWinPct: fetched.adultWinPct };
+  const nameEl   = document.getElementById('opp_' + key + '_name');
+  const ratingEl = document.getElementById('opp_' + key + '_rating');
+  if (nameEl   && !nameEl.value   && fetched.name   && fetched.name !== 'Unknown') nameEl.value = fetched.name;
+  if (ratingEl && !ratingEl.value && fetched.rating) ratingEl.value = fetched.rating;
+  const { w, l } = fetched.record || { w: 0, l: 0 };
+  const tot = w + l;
+  if (tot > 0) {
+    const rawPct  = Math.round(w / tot * 100);
+    const qualPct = fetched.adultWinPct != null ? Math.round(fetched.adultWinPct * 100) : null;
+    const qualStr = qualPct != null && qualPct !== rawPct ? ` · Quality-adj: ${qualPct}%` : '';
+    info.innerHTML = `<span style="color:var(--text-sec)">Adult NTRP: <strong>${w}W–${l}L</strong> (${rawPct}%)${qualStr}</span>`;
+  } else {
+    info.innerHTML = `<span style="color:var(--text-light)">No adult match history found${fetched.rating ? ` · Rating: ${fetched.rating}` : ''}</span>`;
+  }
 }
 
 async function lookupAddPlayerUrl() {
@@ -1688,10 +1775,17 @@ async function fillFromPaste() {
   if (urlLines.length) {
     const fetches = urlLines.map(line => {
       const m = line.match(/https?:\/\/\S+/i);
-      return m ? fetchTennisRecordRating(m[0]) : Promise.resolve(null);
+      return m ? fetchTennisRecordData(m[0]).then(d => d ? { ...d, _url: m[0] } : null) : Promise.resolve(null);
     });
     const results = await Promise.allSettled(fetches);
-    results.forEach(r => { if (r.status === 'fulfilled' && r.value) urlPlayers.push(r.value); });
+    results.forEach(r => {
+      if (r.status === 'fulfilled' && r.value) {
+        urlPlayers.push(r.value);
+        if (r.value._url && r.value.adultWinPct != null) {
+          oppUrlCache[r.value._url] = { record: r.value.record, adultWinPct: r.value.adultWinPct };
+        }
+      }
+    });
   }
 
   const lines = nonUrlLines.filter(l => l);
