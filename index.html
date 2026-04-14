@@ -1433,11 +1433,15 @@ function optimize() {
             const s1score = scoreSingles(s1.id, opp.s1.rating, opp.s1.adultWinPct);
             const d1score = scoreDoublesVsOpp(perm[0][0], perm[0][1], oppD[0], oppDQ[0]);
             const d2score = scoreDoublesVsOpp(perm[1][0], perm[1][1], oppD[1], oppDQ[1]);
+            const ga = id => lineAdjWinPct(ROSTER.find(r => r.id === id));
+            const d1Adj = (ga(perm[0][0]) + ga(perm[0][1])) / 2;
+            const d2Adj = (ga(perm[1][0]) + ga(perm[1][1])) / 2;
+            const lineAffinity = (d1Adj - d2Adj) * 15;
             allLineups.push({
               s1: s1.id, s2: null,
               d1: perm[0], d2: perm[1], d3: null,
               scores: { s1: s1score, d1: d1score, d2: d2score },
-              total: s1score + d1score + d2score,
+              total: s1score + d1score + d2score + lineAffinity,
             });
           }
         }
@@ -1477,11 +1481,15 @@ function optimize() {
               const d1score = scoreDoublesVsOpp(perm[0][0], perm[0][1], oppD[0], oppDQ[0]);
               const d2score = scoreDoublesVsOpp(perm[1][0], perm[1][1], oppD[1], oppDQ[1]);
               const d3score = scoreDoublesVsOpp(perm[2][0], perm[2][1], oppD[2], oppDQ[2]);
+              const ga = id => lineAdjWinPct(ROSTER.find(r => r.id === id));
+              const d1Adj = (ga(perm[0][0]) + ga(perm[0][1])) / 2;
+              const d3Adj = (ga(perm[2][0]) + ga(perm[2][1])) / 2;
+              const lineAffinity = (d1Adj - d3Adj) * 25;
               allLineups.push({
                 s1: s1.id, s2: s2.id,
                 d1: perm[0], d2: perm[1], d3: perm[2],
                 scores: { s1: s1score, s2: s2score, d1: d1score, d2: d2score, d3: d3score },
-                total: s1score + s2score + d1score + d2score + d3score,
+                total: s1score + s2score + d1score + d2score + d3score + lineAffinity,
               });
             }
           }
