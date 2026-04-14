@@ -1281,6 +1281,16 @@ function isAvoided(id1, id2) {
   return (ps && ps.avoid) ? ps : null;
 }
 
+function lineAdjWinPct(player) {
+  // Normalize win% by typical opponent strength at the player's line.
+  // Higher-rated players play Line 1 against tougher opponents — raw win% understates ability.
+  // Lower-rated players play Line 3 against easier opponents — raw win% overstates ability.
+  const raw = player.winPct || 0.5;
+  const teamAvg = ROSTER.reduce((s, p) => s + p.rating, 0) / ROSTER.length;
+  const adj = (player.rating - teamAvg) * 0.75;
+  return Math.min(0.95, Math.max(0.05, raw + adj));
+}
+
 function scorePartnership(id1, id2) {
   const ps    = getPartnership(id1, id2);
   const avoid = isAvoided(id1, id2);
@@ -1301,7 +1311,8 @@ function scorePartnership(id1, id2) {
   else if (sides.includes('both')) score += 12;
   else if (sides[0] === sides[1])  score -= 5;
   score += ((p1.rating + p2.rating) / 2 - 3.5) * 30;
-  score += ((p1.winPct + p2.winPct) / 2) * 20;
+  // Line-adjusted win% (normalizes for opponent strength at each line)
+  score += ((lineAdjWinPct(p1) + lineAdjWinPct(p2)) / 2) * 20;
   return score;
 }
 
@@ -1309,7 +1320,8 @@ function scoreSingles(playerId, oppRating, oppAdultWinPct) {
   const p = ROSTER.find(r => r.id === playerId);
   let score = p.singlesScore || 30;
   if (oppRating) score += (p.rating - oppRating) * 40;
-  score += (p.winPct || 0.5) * 15;
+  // Line-adjusted win% (normalizes for opponent strength at each line)
+  score += lineAdjWinPct(p) * 15;
   if (oppAdultWinPct != null) score -= (oppAdultWinPct - 0.5) * 25;
   return score;
 }
@@ -1410,7 +1422,7 @@ function optimize() {
       const s1 = sCandidates[si];
       const pool = avail
         .filter(p => p.id !== s1.id)
-        .sort((a,b) => (b.rating * (0.5 + b.winPct)) - (a.rating * (0.5 + a.winPct)))
+        .sort((a,b) => (b.rating * (0.5 + lineAdjWinPct(b))) - (a.rating * (0.5 + lineAdjWinPct(a))))
         .slice(0, 10)
         .map(p => p.id);
       if (pool.length < 4) continue;
@@ -1452,7 +1464,7 @@ function optimize() {
         const s1 = sCandidates[si], s2 = sCandidates[sj];
         const pool = avail
           .filter(p => p.id !== s1.id && p.id !== s2.id)
-          .sort((a,b) => (b.rating * (0.5 + b.winPct)) - (a.rating * (0.5 + a.winPct)))
+          .sort((a,b) => (b.rating * (0.5 + lineAdjWinPct(b))) - (a.rating * (0.5 + lineAdjWinPct(a))))
           .slice(0, 12)
           .map(p => p.id);
         if (pool.length < 6) continue;
