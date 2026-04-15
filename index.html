@@ -445,6 +445,26 @@ USTA format auto-detected: players marked Available/Yes will be checked in, Not 
           <label class="add-label">Win % (auto-filled by Lookup)</label>
           <input class="add-input" id="add_winpct" placeholder="50" type="number" step="1">
         </div>
+        <div class="add-field">
+          <label class="add-label" id="add_wcurr_label">2026 Wins</label>
+          <input class="add-input" id="add_wcurr" placeholder="0" type="number" step="1">
+        </div>
+        <div class="add-field">
+          <label class="add-label" id="add_lcurr_label">2026 Losses</label>
+          <input class="add-input" id="add_lcurr" placeholder="0" type="number" step="1">
+        </div>
+        <div class="add-field">
+          <label class="add-label" id="add_wprev_label">2025 Wins</label>
+          <input class="add-input" id="add_wprev" placeholder="0" type="number" step="1">
+        </div>
+        <div class="add-field">
+          <label class="add-label" id="add_lprev_label">2025 Losses</label>
+          <input class="add-input" id="add_lprev" placeholder="0" type="number" step="1">
+        </div>
+        <div class="add-field full">
+          <label class="add-label">Most Successful Partners (auto-filled by Lookup)</label>
+          <input class="add-input" id="add_partners" placeholder="e.g. Jane Smith (5-2), Mary Jones (3-1)" readonly style="cursor:default;background:var(--off-white);color:var(--text-sec)">
+        </div>
       </div>
       <div class="add-actions">
         <button class="add-cancel" onclick="toggleAddPanel()">Cancel</button>
@@ -697,6 +717,11 @@ function applySettings() {
   const s = loadSettings();
   const teamName = s.teamName || '';
   const level    = s.level    || 'USTA';
+  const yr = getSeason();
+  document.getElementById('add_wcurr_label').textContent = yr + ' Wins';
+  document.getElementById('add_lcurr_label').textContent = yr + ' Losses';
+  document.getElementById('add_wprev_label').textContent = (yr-1) + ' Wins';
+  document.getElementById('add_lprev_label').textContent = (yr-1) + ' Losses';
   document.getElementById('headerBadge').textContent = level;
   document.getElementById('footerText').textContent =
     (teamName ? teamName + ' — ' : '') + 'Lineup Optimizer · ' + getSeason() + ' ' + level;
@@ -793,8 +818,16 @@ function openEditPanel(id, event) {
   document.getElementById('add_side').value    = p.side || 'both';
   document.getElementById('add_line').value    = p.line || 'doubles';
   document.getElementById('add_winpct').value  = Math.round((p.winPct || 0.5) * 100);
+  const curr = p.recordCurr || { w:0, l:0 };
+  const prev = p.recordPrev || { w:0, l:0 };
+  document.getElementById('add_wcurr').value   = curr.w || 0;
+  document.getElementById('add_lcurr').value   = curr.l || 0;
+  document.getElementById('add_wprev').value   = prev.w || 0;
+  document.getElementById('add_lprev').value   = prev.l || 0;
+  document.getElementById('add_partners').value =
+    (p.topPartners || []).map(tp => `${tp.name} (${tp.w}-${tp.l})`).join(', ');
   document.getElementById('add_url').value     = '';
-  _pendingRecord = p.recordCurr || null;
+  _pendingRecord = { recordCurr: curr, recordPrev: prev, topPartners: p.topPartners || [] };
 
   document.getElementById('addPanelTitle').textContent = 'EDIT PLAYER';
   document.getElementById('addSaveBtn').textContent = 'SAVE CHANGES';
@@ -822,8 +855,11 @@ function saveNewPlayer() {
   const side   = document.getElementById('add_side').value;
   const line   = document.getElementById('add_line').value;
   const winpct = (parseInt(document.getElementById('add_winpct').value) || 50) / 100;
-  const wCurr  = _pendingRecord?.w ?? 0;
-  const lCurr  = _pendingRecord?.l ?? 0;
+  const wCurr  = parseInt(document.getElementById('add_wcurr').value) || (_pendingRecord?.recordCurr?.w ?? 0);
+  const lCurr  = parseInt(document.getElementById('add_lcurr').value) || (_pendingRecord?.recordCurr?.l ?? 0);
+  const wPrev  = parseInt(document.getElementById('add_wprev').value) || (_pendingRecord?.recordPrev?.w ?? 0);
+  const lPrev  = parseInt(document.getElementById('add_lprev').value) || (_pendingRecord?.recordPrev?.l ?? 0);
+  const topPartners = _pendingRecord?.topPartners ?? [];
 
   if (!fname || !lname) { alert('Please enter first and last name.'); return; }
 
@@ -842,9 +878,11 @@ function saveNewPlayer() {
       p.side         = side;
       p.line         = line;
       p.singlesCapable = singlesCapable;
-      p.singlesScore = singlesScore;
-      p.winPct       = winpct;
-      if (_pendingRecord) p.recordCurr = { w: wCurr, l: lCurr, year: yr };
+      p.singlesScore  = singlesScore;
+      p.winPct        = winpct;
+      p.recordCurr    = { w: wCurr, l: lCurr, year: yr };
+      p.recordPrev    = { w: wPrev, l: lPrev, year: yr - 1 };
+      if (topPartners.length > 0) p.topPartners = topPartners;
     }
     _editingPlayerId = null;
     _pendingRecord = null;
@@ -857,9 +895,10 @@ function saveNewPlayer() {
     const newPlayer = {
       id, name: `${fname} ${lname}`, rating, side, line,
       singlesCapable, captain: false,
-      recordPrev: { w: 0, l: 0, year: yr - 1 },
+      recordPrev: { w: wPrev, l: lPrev, year: yr - 1 },
       recordCurr: { w: wCurr, l: lCurr, year: yr },
       winPct: winpct,
+      topPartners,
       tags: [],
       singlesScore,
     };
@@ -869,10 +908,11 @@ function saveNewPlayer() {
     persistRoster();
   }
 
-  ['add_fname','add_lname','add_rating','add_winpct'].forEach(f => {
+  ['add_fname','add_lname','add_rating','add_winpct','add_wcurr','add_lcurr','add_wprev','add_lprev'].forEach(f => {
     document.getElementById(f).value = '';
   });
   document.getElementById('add_url').value = '';
+  document.getElementById('add_partners').value = '';
   document.getElementById('add_side').value = 'ad';
   document.getElementById('add_line').value = 'doubles';
   document.getElementById('addPanel').classList.remove('open');
@@ -1251,6 +1291,21 @@ function openPlayerModal(id, event) {
       <div class="pmodal-stat-lbl">Career W%</div>
     </div>
   </div>`;
+
+  if (p.topPartners && p.topPartners.length > 0) {
+    html += `<div class="pmodal-divider"></div><div class="pmodal-sec-title">Most Successful Partners (TennisRecord)</div>`;
+    p.topPartners.forEach(tp => {
+      const tot = tp.w + tp.l;
+      const pp  = tot > 0 ? Math.round(tp.w / tot * 100) : 0;
+      const cls = pp >= 60 ? 'good' : pp >= 40 ? 'ok' : 'bad';
+      html += `<div class="pmodal-pship">
+        <div class="pmodal-pship-name">${tp.name}</div>
+        <div class="pmodal-pship-note"></div>
+        <div class="pmodal-pship-rec pship-item-record ${cls}">${tp.w}-${tp.l}</div>
+        <div style="font-size:11px;color:var(--text-sec)">${pp}%</div>
+      </div>`;
+    });
+  }
 
   const pships = PARTNERSHIPS.filter(ps => ps.p.includes(p.id) && !ps.avoid);
   if (pships.length > 0) {
@@ -1791,6 +1846,8 @@ function fillField(id, value) {
 function extractAdultMatches(html) {
   let wins = 0, losses = 0;
   const winOppRatings = [], lossOppRatings = [];
+  const byYear = {};      // { 2026: {w,l}, 2025: {w,l}, ... }
+  const partnerRec = {};  // { "Jane Smith": {w,l}, ... }
   const rows = html.match(/<tr[\s\S]*?<\/tr>/gi) || [];
   let inAdult = true;
   for (const row of rows) {
@@ -1806,10 +1863,34 @@ function extractAdultMatches(html) {
     if (!isWin && !isLoss) continue;
     const oppRating = [...row.matchAll(/\b([234]\.\d{2,4})\b/g)]
       .map(m => parseFloat(m[1])).find(r => r >= 2.5 && r <= 4.5) ?? null;
-    if (isWin)  { wins++;   if (oppRating) winOppRatings.push(oppRating); }
-    else        { losses++; if (oppRating) lossOppRatings.push(oppRating); }
+
+    // Extract match year from date patterns (MM/DD/YYYY or YYYY)
+    const yearMatch = text.match(/\b(20\d{2})\b/);
+    const year = yearMatch ? parseInt(yearMatch[1]) : null;
+
+    // Extract partner name — first profile link in the row (doubles rows have a partner link
+    // before opponent links; singles rows typically have no partner link)
+    const profileLinks = [...row.matchAll(/<a[^>]+href="[^"]*playername=([^"&\s]+)"[^>]*>([^<]+)<\/a>/gi)];
+    let partnerName = null;
+    if (profileLinks.length >= 2) {
+      // Multiple links → doubles match; first link is the partner
+      const raw = decodeURIComponent(profileLinks[0][2]).replace(/\+/g, ' ').trim();
+      if (/[A-Za-z]/.test(raw) && raw.length > 2 && raw.length < 60) partnerName = raw;
+    }
+
+    if (isWin) {
+      wins++;
+      if (oppRating) winOppRatings.push(oppRating);
+      if (year) { if (!byYear[year]) byYear[year] = {w:0,l:0}; byYear[year].w++; }
+      if (partnerName) { if (!partnerRec[partnerName]) partnerRec[partnerName] = {w:0,l:0}; partnerRec[partnerName].w++; }
+    } else {
+      losses++;
+      if (oppRating) lossOppRatings.push(oppRating);
+      if (year) { if (!byYear[year]) byYear[year] = {w:0,l:0}; byYear[year].l++; }
+      if (partnerName) { if (!partnerRec[partnerName]) partnerRec[partnerName] = {w:0,l:0}; partnerRec[partnerName].l++; }
+    }
   }
-  return { wins, losses, winOppRatings, lossOppRatings };
+  return { wins, losses, winOppRatings, lossOppRatings, byYear, partnerRec };
 }
 
 async function fetchTennisRecordData(url) {
@@ -1828,7 +1909,7 @@ async function fetchTennisRecordData(url) {
       if (!ctx.includes('combo') && !ctx.includes('mixed')) { rating = parseFloat(m[1]); break; }
     }
     if (!rating) { const rm = html.match(/(\d\.\d{4})/); if (rm) rating = parseFloat(rm[1]); }
-    const { wins, losses, winOppRatings, lossOppRatings } = extractAdultMatches(html);
+    const { wins, losses, winOppRatings, lossOppRatings, byYear, partnerRec } = extractAdultMatches(html);
     const total = wins + losses;
     let adultWinPct = total > 0 ? wins / total : null;
     const allOppR = [...winOppRatings, ...lossOppRatings];
@@ -1837,7 +1918,18 @@ async function fetchTennisRecordData(url) {
       const avgWOpp = winOppRatings.length > 0 ? winOppRatings.reduce((a, b) => a + b, 0) / winOppRatings.length : avgOpp;
       adultWinPct = Math.min(0.95, Math.max(0.05, adultWinPct + (avgWOpp - avgOpp) * 0.5));
     }
-    return { name, rating, record: { w: wins, l: losses }, adultWinPct };
+    const yr = CUR_YEAR;
+    const recordCurr = byYear[yr]   || { w: 0, l: 0 };
+    const recordPrev = byYear[yr-1] || { w: 0, l: 0 };
+    // Top partners: sort by win% (min 1 match), cap at 3
+    const topPartners = Object.entries(partnerRec)
+      .sort(([, a], [, b]) => {
+        const pa = a.w / (a.w + a.l), pb = b.w / (b.w + b.l);
+        return pb !== pa ? pb - pa : (b.w + b.l) - (a.w + a.l);
+      })
+      .slice(0, 3)
+      .map(([name, r]) => ({ name, w: r.w, l: r.l }));
+    return { name, rating, record: { w: wins, l: losses }, recordCurr, recordPrev, adultWinPct, topPartners };
   } catch(e) { return null; }
 }
 
@@ -1892,7 +1984,19 @@ async function lookupAddPlayerUrl() {
   document.getElementById('add_rating').value = player.rating;
   if (player.adultWinPct != null)
     document.getElementById('add_winpct').value = Math.round(player.adultWinPct * 100);
-  if (player.record) _pendingRecord = player.record;
+  if (player.recordCurr) {
+    document.getElementById('add_wcurr').value = player.recordCurr.w;
+    document.getElementById('add_lcurr').value = player.recordCurr.l;
+  }
+  if (player.recordPrev) {
+    document.getElementById('add_wprev').value = player.recordPrev.w;
+    document.getElementById('add_lprev').value = player.recordPrev.l;
+  }
+  if (player.topPartners && player.topPartners.length > 0) {
+    document.getElementById('add_partners').value =
+      player.topPartners.map(p => `${p.name} (${p.w}-${p.l})`).join(', ');
+  }
+  _pendingRecord = { recordCurr: player.recordCurr, recordPrev: player.recordPrev, topPartners: player.topPartners || [] };
 }
 
 async function fillFromPaste() {
