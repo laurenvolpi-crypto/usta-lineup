@@ -447,12 +447,20 @@ USTA format auto-detected: players marked Available/Yes will be checked in, Not 
           <input class="add-input" id="add_winpct" placeholder="50" type="number" step="1">
         </div>
         <div class="add-field">
-          <label class="add-label" id="add_wcurr_label">2026 Wins</label>
-          <input class="add-input" id="add_wcurr" placeholder="0" type="number" step="1">
+          <label class="add-label" id="add_wcurr_s_label">2026 Singles W</label>
+          <input class="add-input" id="add_wcurr_s" placeholder="0" type="number" step="1">
         </div>
         <div class="add-field">
-          <label class="add-label" id="add_lcurr_label">2026 Losses</label>
-          <input class="add-input" id="add_lcurr" placeholder="0" type="number" step="1">
+          <label class="add-label" id="add_lcurr_s_label">2026 Singles L</label>
+          <input class="add-input" id="add_lcurr_s" placeholder="0" type="number" step="1">
+        </div>
+        <div class="add-field">
+          <label class="add-label" id="add_wcurr_d_label">2026 Doubles W</label>
+          <input class="add-input" id="add_wcurr_d" placeholder="0" type="number" step="1">
+        </div>
+        <div class="add-field">
+          <label class="add-label" id="add_lcurr_d_label">2026 Doubles L</label>
+          <input class="add-input" id="add_lcurr_d" placeholder="0" type="number" step="1">
         </div>
         <div class="add-field">
           <label class="add-label" id="add_wprev_label">2025 Wins</label>
@@ -719,8 +727,10 @@ function applySettings() {
   const teamName = s.teamName || '';
   const level    = s.level    || 'USTA';
   const yr = getSeason();
-  document.getElementById('add_wcurr_label').textContent = yr + ' Wins';
-  document.getElementById('add_lcurr_label').textContent = yr + ' Losses';
+  document.getElementById('add_wcurr_s_label').textContent = yr + ' Singles W';
+  document.getElementById('add_lcurr_s_label').textContent = yr + ' Singles L';
+  document.getElementById('add_wcurr_d_label').textContent = yr + ' Doubles W';
+  document.getElementById('add_lcurr_d_label').textContent = yr + ' Doubles L';
   document.getElementById('add_wprev_label').textContent = (yr-1) + ' Wins';
   document.getElementById('add_lprev_label').textContent = (yr-1) + ' Losses';
   document.getElementById('headerBadge').textContent = level;
@@ -822,8 +832,10 @@ function openEditPanel(id, event) {
   document.getElementById('add_winpct').value  = Math.round((p.winPct || 0.5) * 100);
   const curr = p.recordCurr || { w:0, l:0 };
   const prev = p.recordPrev || { w:0, l:0 };
-  document.getElementById('add_wcurr').value   = curr.w || 0;
-  document.getElementById('add_lcurr').value   = curr.l || 0;
+  document.getElementById('add_wcurr_s').value = curr.sw ?? curr.w ?? 0;
+  document.getElementById('add_lcurr_s').value = curr.sl ?? curr.l ?? 0;
+  document.getElementById('add_wcurr_d').value = curr.dw ?? 0;
+  document.getElementById('add_lcurr_d').value = curr.dl ?? 0;
   document.getElementById('add_wprev').value   = prev.w || 0;
   document.getElementById('add_lprev').value   = prev.l || 0;
   document.getElementById('add_partners').value =
@@ -857,10 +869,14 @@ function saveNewPlayer() {
   const side   = document.getElementById('add_side').value;
   const line   = document.getElementById('add_line').value;
   const winpct = (parseInt(document.getElementById('add_winpct').value) || 50) / 100;
-  const wCurr  = parseInt(document.getElementById('add_wcurr').value) || (_pendingRecord?.recordCurr?.w ?? 0);
-  const lCurr  = parseInt(document.getElementById('add_lcurr').value) || (_pendingRecord?.recordCurr?.l ?? 0);
-  const wPrev  = parseInt(document.getElementById('add_wprev').value) || (_pendingRecord?.recordPrev?.w ?? 0);
-  const lPrev  = parseInt(document.getElementById('add_lprev').value) || (_pendingRecord?.recordPrev?.l ?? 0);
+  const sw     = parseInt(document.getElementById('add_wcurr_s').value) || 0;
+  const sl     = parseInt(document.getElementById('add_lcurr_s').value) || 0;
+  const dw     = parseInt(document.getElementById('add_wcurr_d').value) || 0;
+  const dl     = parseInt(document.getElementById('add_lcurr_d').value) || 0;
+  const wCurr  = sw + dw;
+  const lCurr  = sl + dl;
+  const wPrev  = parseInt(document.getElementById('add_wprev').value) || 0;
+  const lPrev  = parseInt(document.getElementById('add_lprev').value) || 0;
   const topPartners = _pendingRecord?.topPartners ?? [];
 
   if (!fname || !lname) { alert('Please enter first and last name.'); return; }
@@ -882,7 +898,7 @@ function saveNewPlayer() {
       p.singlesCapable = singlesCapable;
       p.singlesScore  = singlesScore;
       p.winPct        = winpct;
-      p.recordCurr    = { w: wCurr, l: lCurr, year: yr };
+      p.recordCurr    = { w: wCurr, l: lCurr, sw, sl, dw, dl, year: yr };
       p.recordPrev    = { w: wPrev, l: lPrev, year: yr - 1 };
       if (topPartners.length > 0) p.topPartners = topPartners;
     }
@@ -898,7 +914,7 @@ function saveNewPlayer() {
       id, name: `${fname} ${lname}`, rating, side, line,
       singlesCapable, captain: false,
       recordPrev: { w: wPrev, l: lPrev, year: yr - 1 },
-      recordCurr: { w: wCurr, l: lCurr, year: yr },
+      recordCurr: { w: wCurr, l: lCurr, sw, sl, dw, dl, year: yr },
       winPct: winpct,
       topPartners,
       tags: [],
@@ -910,7 +926,7 @@ function saveNewPlayer() {
     persistRoster();
   }
 
-  ['add_fname','add_lname','add_rating','add_winpct','add_wcurr','add_lcurr','add_wprev','add_lprev'].forEach(f => {
+  ['add_fname','add_lname','add_rating','add_winpct','add_wcurr_s','add_lcurr_s','add_wcurr_d','add_lcurr_d','add_wprev','add_lprev'].forEach(f => {
     document.getElementById(f).value = '';
   });
   document.getElementById('add_url').value = '';
@@ -1051,9 +1067,20 @@ function renderRoster() {
         tagsHTML += `<span class="player-tag" style="background:#6366F122;color:#6366F1">${t}</span>`;
     });
 
-    const recText = totalCurr > 0
-      ? `${yr}: ${curr.w}-${curr.l}` + (pctCurr !== null ? ` (${pctCurr}%)` : '')
-      : `${yr}: No data`;
+    let recText;
+    if (totalCurr > 0) {
+      const hasSplit = (curr.sw != null || curr.dw != null);
+      if (hasSplit && p.singlesCapable && p.line !== 'singles' && p.line !== 'doubles') {
+        // plays both — show split
+        const sPct = (curr.sw + curr.sl) > 0 ? ` ${Math.round(curr.sw/(curr.sw+curr.sl)*100)}%` : '';
+        const dPct = (curr.dw + curr.dl) > 0 ? ` ${Math.round(curr.dw/(curr.dw+curr.dl)*100)}%` : '';
+        recText = `${yr}: S ${curr.sw}-${curr.sl}${sPct} · D ${curr.dw}-${curr.dl}${dPct}`;
+      } else {
+        recText = `${yr}: ${curr.w}-${curr.l}` + (pctCurr !== null ? ` (${pctCurr}%)` : '');
+      }
+    } else {
+      recText = `${yr}: No data`;
+    }
 
     return `
       <div class="player-row ${checked ? 'checked' : 'unavailable'} removable" onclick="togglePlayer('${p.id}', this)" id="row_${p.id}">
@@ -1278,12 +1305,35 @@ function openPlayerModal(id, event) {
   if (pCurr !== null && pCurr <= 30 && tCurr >= 3) badges += `<span class="player-tag tag-warn">Caution</span>`;
   document.getElementById('pmodal-badges').innerHTML = badges;
 
+  const hasSplit = curr.sw != null || curr.dw != null;
+  const tS = (curr.sw||0) + (curr.sl||0);
+  const tD = (curr.dw||0) + (curr.dl||0);
+  const pS = tS > 0 ? Math.round((curr.sw||0) / tS * 100) : null;
+  const pD = tD > 0 ? Math.round((curr.dw||0) / tD * 100) : null;
+
   let html = `<div class="pmodal-sec-title">Season Records</div>
-  <div class="pmodal-stats">
+  <div class="pmodal-stats">`;
+
+  if (hasSplit && (tS > 0 || tD > 0)) {
+    // Show singles and doubles separately
+    html += `
+    <div class="pmodal-stat">
+      <div class="pmodal-stat-val">${tS > 0 ? (curr.sw||0)+'-'+(curr.sl||0) : '&mdash;'}</div>
+      <div class="pmodal-stat-lbl">${yr} Singles${pS !== null ? ' &middot; '+pS+'%' : ''}</div>
+    </div>
+    <div class="pmodal-stat">
+      <div class="pmodal-stat-val">${tD > 0 ? (curr.dw||0)+'-'+(curr.dl||0) : '&mdash;'}</div>
+      <div class="pmodal-stat-lbl">${yr} Doubles${pD !== null ? ' &middot; '+pD+'%' : ''}</div>
+    </div>`;
+  } else {
+    html += `
     <div class="pmodal-stat">
       <div class="pmodal-stat-val">${tCurr > 0 ? curr.w+'-'+curr.l : '&mdash;'}</div>
       <div class="pmodal-stat-lbl">${yr}${pCurr !== null ? ' &middot; '+pCurr+'%' : ''}</div>
-    </div>
+    </div>`;
+  }
+
+  html += `
     <div class="pmodal-stat">
       <div class="pmodal-stat-val">${tPrev > 0 ? prev.w+'-'+prev.l : '&mdash;'}</div>
       <div class="pmodal-stat-lbl">${yr-1}${pPrev !== null ? ' &middot; '+pPrev+'%' : ''}</div>
@@ -1898,15 +1948,25 @@ function extractAdultMatches(html) {
       if (/[A-Za-z]/.test(raw)) partnerName = raw;
     }
 
+    const isDoubles = partnerName !== null;
+
     if (isWin) {
       wins++;
       if (oppRating) winOppRatings.push(oppRating);
-      if (year) { if (!byYear[year]) byYear[year] = {w:0,l:0}; byYear[year].w++; }
+      if (year) {
+        if (!byYear[year]) byYear[year] = {w:0,l:0,sw:0,sl:0,dw:0,dl:0};
+        byYear[year].w++;
+        if (isDoubles) byYear[year].dw++; else byYear[year].sw++;
+      }
       if (partnerName) { if (!partnerRec[partnerName]) partnerRec[partnerName] = {w:0,l:0}; partnerRec[partnerName].w++; }
     } else {
       losses++;
       if (oppRating) lossOppRatings.push(oppRating);
-      if (year) { if (!byYear[year]) byYear[year] = {w:0,l:0}; byYear[year].l++; }
+      if (year) {
+        if (!byYear[year]) byYear[year] = {w:0,l:0,sw:0,sl:0,dw:0,dl:0};
+        byYear[year].l++;
+        if (isDoubles) byYear[year].dl++; else byYear[year].sl++;
+      }
       if (partnerName) { if (!partnerRec[partnerName]) partnerRec[partnerName] = {w:0,l:0}; partnerRec[partnerName].l++; }
     }
   }
@@ -1975,8 +2035,8 @@ async function fetchTennisRecordData(url) {
       adultWinPct = Math.min(0.95, Math.max(0.05, adultWinPct + (avgWOpp - avgOpp) * 0.5));
     }
     const yr = CUR_YEAR;
-    const recordCurr = byYear[yr]   || { w: 0, l: 0 };
-    const recordPrev = byYear[yr-1] || { w: 0, l: 0 };
+    const recordCurr = byYear[yr]   || { w:0, l:0, sw:0, sl:0, dw:0, dl:0 };
+    const recordPrev = byYear[yr-1] || { w:0, l:0, sw:0, sl:0, dw:0, dl:0 };
     // Top partners: sort by win% (min 1 match), cap at 3
     const topPartners = Object.entries(partnerRec)
       .sort(([, a], [, b]) => {
@@ -2065,10 +2125,14 @@ async function lookupAddPlayerUrl() {
   // Season records
   const totalMatches = (player.record?.w || 0) + (player.record?.l || 0);
   if (totalMatches > 0) {
-    document.getElementById('add_wcurr').value = player.recordCurr?.w ?? 0;
-    document.getElementById('add_lcurr').value = player.recordCurr?.l ?? 0;
-    document.getElementById('add_wprev').value = player.recordPrev?.w ?? 0;
-    document.getElementById('add_lprev').value = player.recordPrev?.l ?? 0;
+    const rc = player.recordCurr || {};
+    const rp = player.recordPrev || {};
+    document.getElementById('add_wcurr_s').value = rc.sw ?? 0;
+    document.getElementById('add_lcurr_s').value = rc.sl ?? 0;
+    document.getElementById('add_wcurr_d').value = rc.dw ?? 0;
+    document.getElementById('add_lcurr_d').value = rc.dl ?? 0;
+    document.getElementById('add_wprev').value   = rp.w  ?? 0;
+    document.getElementById('add_lprev').value   = rp.l  ?? 0;
     found.push(`records (${totalMatches} matches)`);
   } else {
     missing.push('match history');
