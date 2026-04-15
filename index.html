@@ -121,14 +121,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--off-white);color:var(--te
 .opp-input:focus{border-color:var(--gold)}
 .opp-input::placeholder{color:var(--text-light)}
 .opp-input.rating-input{width:70px;flex:none;text-align:center}
-.opp-link-btn{width:34px;height:38px;border:2px solid var(--light-gray);border-radius:var(--radius-sm);background:var(--white);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;transition:all .15s;color:var(--text-light);padding:0}
-.opp-link-btn:hover{border-color:var(--gold);color:var(--gold)}
-.opp-link-btn.active{border-color:var(--gold);background:var(--gold-dim);color:var(--gold)}
-.opp-url-row{display:none;gap:8px;margin-top:-2px;padding-bottom:6px;animation:fadeUp .2s ease both}
-.opp-url-row.open{display:flex}
-.opp-url-input{flex:1;font-family:'DM Sans',sans-serif;font-size:12px;padding:7px 10px;border:2px solid var(--light-gray);border-radius:var(--radius-sm);outline:none;transition:border-color .15s;background:var(--white);color:var(--text-sec)}
-.opp-url-input:focus{border-color:var(--gold)}
-.opp-url-input::placeholder{color:var(--text-light)}
 .opp-divider{height:1px;background:var(--light-gray);margin:12px 0}
 
 /* GENERATE BUTTON */
@@ -311,6 +303,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--off-white);color:var(--te
 .url-lookup-input:focus{border-color:var(--gold)}
 .url-lookup-btn{font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;padding:8px 12px;border-radius:var(--radius-sm);border:none;background:var(--navy);color:var(--gold);cursor:pointer;white-space:nowrap;flex-shrink:0}
 .url-lookup-btn:disabled{opacity:.5;cursor:not-allowed}
+.opp-link-btn{width:34px;height:38px;border:2px solid var(--light-gray);border-radius:var(--radius-sm);background:var(--white);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;transition:all .15s;color:var(--text-light);padding:0}
+.opp-link-btn:hover{border-color:var(--gold);color:var(--gold)}
+.opp-link-btn.active{border-color:var(--gold);background:var(--gold-dim);color:var(--gold)}
+.opp-url-row{display:none;gap:8px;margin-top:-2px;padding-bottom:6px;animation:fadeUp .2s ease both}
+.opp-url-row.open{display:flex}
+.opp-url-input{flex:1;font-family:'DM Sans',sans-serif;font-size:12px;padding:7px 10px;border:2px solid var(--light-gray);border-radius:var(--radius-sm);outline:none;transition:border-color .15s;background:var(--white);color:var(--text-sec)}
+.opp-url-input:focus{border-color:var(--gold)}
+.opp-url-input::placeholder{color:var(--text-light)}
 
 /* PASTE ROSTER */
 .paste-panel{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin-bottom:12px;display:none}
@@ -385,6 +385,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--off-white);color:var(--te
       <button class="select-btn" onclick="selectNone()">Clear</button>
       <button class="select-btn" onclick="toggleAvailPanel()" id="pasteAvailBtn">Paste Available</button>
       <button class="add-player-btn" onclick="toggleAddPanel()">+ Add Player</button>
+      <button class="add-player-btn" onclick="toggleCsvPanel()" id="csvImportBtn">↑ Import CSV</button>
+      <input type="file" id="csvFileInput" accept=".csv" style="display:none" onchange="handleCsvFile(event)">
       <button class="pship-btn" onclick="togglePshipPanel()">Partnerships</button>
     </div>
 
@@ -400,6 +402,24 @@ USTA format auto-detected: players marked Available/Yes will be checked in, Not 
       <div class="paste-actions">
         <button class="paste-btn-cancel" onclick="toggleAvailPanel()">Cancel</button>
         <button class="paste-btn-fill" onclick="fillFromAvail()">Set Availability</button>
+      </div>
+    </div>
+
+    <div class="paste-panel" id="csvPanel">
+      <div class="pship-panel-title">IMPORT ROSTER FROM CSV</div>
+      <div style="font-size:12px;color:var(--text-sec);margin-bottom:10px;line-height:1.5">
+        Expected columns: <strong>Name, NTRP, 2026 Record, Local Singles, Local Doubles, Rating</strong><br>
+        Existing players with the same name will be skipped.
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <button class="paste-btn-fill" style="flex:none" onclick="document.getElementById('csvFileInput').click()">Upload .csv file</button>
+        <span style="line-height:32px;font-size:12px;color:var(--text-light)">— or paste CSV text below —</span>
+      </div>
+      <textarea class="paste-textarea" id="csvPasteText" placeholder="Paste CSV content here (including header row)…" style="min-height:120px;font-size:11px;font-family:monospace"></textarea>
+      <div id="csvFeedback" style="font-size:12px;margin-top:6px;min-height:18px"></div>
+      <div class="paste-actions">
+        <button class="paste-btn-cancel" onclick="toggleCsvPanel()">Cancel</button>
+        <button class="paste-btn-fill" onclick="importFromCsvText()">Import Players</button>
       </div>
     </div>
 
@@ -550,7 +570,7 @@ USTA format auto-detected: players marked Available/Yes will be checked in, Not 
     <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
       <span style="font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:.4px">Format</span>
       <div class="mode-toggle" style="margin-bottom:0;flex:1;min-width:220px">
-        <button class="mode-btn active" onclick="setFormat('standard')" id="fmtStandard">Standard — 2S + 3D</button>
+        <button class="mode-btn active" onclick="setFormat('standard')" id="fmtStandard">Weekend — 2S + 3D</button>
         <button class="mode-btn" onclick="setFormat('short')" id="fmtShort">Daytime — 1S + 2D</button>
       </div>
     </div>
@@ -855,7 +875,7 @@ function openEditPanel(id, event) {
   document.getElementById('add_lprev').value   = prev.l || 0;
   document.getElementById('add_partners').value =
     (p.topPartners || []).map(tp => `${tp.name} (${tp.w}-${tp.l})`).join(', ');
-  document.getElementById('add_url').value     = '';
+  document.getElementById('add_url').value     = p.trUrl || '';
   _pendingRecord = { recordCurr: curr, recordPrev: prev, topPartners: p.topPartners || [] };
 
   document.getElementById('addPanelTitle').textContent = 'EDIT PLAYER';
@@ -916,6 +936,8 @@ function saveNewPlayer() {
       p.recordCurr    = { w: wCurr, l: lCurr, sw, sl, dw, dl, year: yr };
       p.recordPrev    = { w: wPrev, l: lPrev, year: yr - 1 };
       if (topPartners.length > 0) p.topPartners = topPartners;
+      const editedUrl = document.getElementById('add_url').value.trim();
+      if (editedUrl) p.trUrl = editedUrl; else if (!editedUrl && p.trUrl) p.trUrl = null;
     }
     _editingPlayerId = null;
     _pendingRecord = null;
@@ -1061,7 +1083,8 @@ function renderRoster() {
   empty.style.display = 'none';
 
   const yr = getSeason();
-  grid.innerHTML = ROSTER.map(p => {
+  const lastName = name => name.trim().split(/\s+/).slice(-1)[0].toLowerCase();
+  grid.innerHTML = [...ROSTER].sort((a, b) => lastName(a.name).localeCompare(lastName(b.name))).map(p => {
     const checked  = available.has(p.id);
     const curr     = p.recordCurr || { w:0, l:0 };
     const totalCurr = curr.w + curr.l;
@@ -1128,6 +1151,165 @@ function toggleAvailPanel() {
   const panel = document.getElementById('availPanel');
   panel.classList.toggle('open');
   if (panel.classList.contains('open')) document.getElementById('availText').focus();
+}
+
+function toggleCsvPanel() {
+  const panel = document.getElementById('csvPanel');
+  panel.classList.toggle('open');
+  if (panel.classList.contains('open')) {
+    document.getElementById('csvFeedback').innerHTML = '';
+    document.getElementById('csvPasteText').value = '';
+  }
+}
+
+function handleCsvFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('csvPasteText').value = e.target.result;
+    document.getElementById('csvPanel').classList.add('open');
+    importFromCsvText();
+  };
+  reader.readAsText(file);
+  event.target.value = ''; // reset so same file can be re-selected
+}
+
+function parseWL(str) {
+  if (!str) return { w: 0, l: 0 };
+  const m = String(str).trim().match(/^(\d+)-(\d+)$/);
+  return m ? { w: parseInt(m[1]), l: parseInt(m[2]) } : { w: 0, l: 0 };
+}
+
+// Split a single CSV line respecting quoted fields
+function splitCsvLine(line) {
+  const cols = [];
+  let cur = '', inQ = false;
+  for (const ch of line) {
+    if (ch === '"') { inQ = !inQ; }
+    else if (ch === ',' && !inQ) { cols.push(cur.trim()); cur = ''; }
+    else cur += ch;
+  }
+  cols.push(cur.trim());
+  return cols;
+}
+
+// Extract plain text + optional URL from a cell value.
+// Handles: plain text, =HYPERLINK("url","name"), and bare URLs in the cell.
+function parseCellWithUrl(raw) {
+  const s = raw.replace(/^["']|["']$/g, '').trim();
+  // =HYPERLINK("url","display") or =HYPERLINK("url",display)
+  const hlink = s.match(/^=HYPERLINK\s*\(\s*"([^"]+)"\s*,\s*"?([^")\n]+)"?\s*\)/i);
+  if (hlink) return { text: hlink[2].trim(), url: hlink[1].trim() };
+  // bare TennisRecord URL in the cell
+  const urlOnly = s.match(/^https?:\/\/\S+tennisrecord\S*/i);
+  if (urlOnly) return { text: '', url: urlOnly[0] };
+  return { text: s, url: null };
+}
+
+function importFromCsvText() {
+  const raw = document.getElementById('csvPasteText').value.trim();
+  const fb  = document.getElementById('csvFeedback');
+  if (!raw) { fb.innerHTML = '<span style="color:var(--red)">Nothing to import.</span>'; return; }
+
+  // Rejoin multi-line quoted headers before splitting into rows
+  const lines = raw.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) { fb.innerHTML = '<span style="color:var(--red)">CSV needs a header row and at least one player.</span>'; return; }
+
+  // Parse header — strip quotes, lowercase, collapse whitespace
+  const cleanHdr = s => s.replace(/^["']|["']$/g, '').trim().toLowerCase().replace(/\s+/g, ' ');
+  const headers = splitCsvLine(lines[0]).map(cleanHdr);
+
+  const idx  = name => headers.findIndex(h => h.includes(name));
+  const iName    = idx('name');
+  const iRating  = idx('rating');
+  const iNtrp    = idx('ntrp');
+  const i2026    = headers.findIndex(h => /2026/.test(h) && /record/.test(h));
+  const iSingles = headers.findIndex(h => /singles/.test(h));
+  const iDoubles = headers.findIndex(h => /doubles/.test(h));
+  // URL column: "tennisrecord url", "tr url", "url", "profile url", etc.
+  const iUrl     = headers.findIndex(h => /url/.test(h) || /tennisrecord/.test(h) || /profile/.test(h));
+
+  if (iName === -1) { fb.innerHTML = '<span style="color:var(--red)">Could not find a "Name" column.</span>'; return; }
+
+  const yr = getSeason();
+  let added = 0, skipped = 0, urlCount = 0;
+  const existingNames = new Set(ROSTER.map(p => p.name.toLowerCase()));
+
+  for (let i = 1; i < lines.length; i++) {
+    const cols = splitCsvLine(lines[i]);
+    const get  = j => (j >= 0 && j < cols.length) ? cols[j].replace(/^["']|["']$/g, '').trim() : '';
+
+    // Name cell may be a HYPERLINK formula — extract text and URL
+    const nameCell = (iName >= 0 && iName < cols.length) ? cols[iName] : '';
+    const { text: fullName, url: nameUrl } = parseCellWithUrl(nameCell);
+    if (!fullName) continue;
+
+    if (existingNames.has(fullName.toLowerCase())) { skipped++; continue; }
+
+    const parts = fullName.trim().split(/\s+/);
+    const fname = parts[0] || '';
+    const lname = parts.slice(1).join(' ') || '';
+    if (!fname || !lname) { skipped++; continue; }
+
+    // TennisRecord URL: from name hyperlink, dedicated URL column, or URL in any cell
+    let trUrl = nameUrl || null;
+    if (!trUrl && iUrl >= 0) {
+      const { url: colUrl } = parseCellWithUrl(get(iUrl));
+      if (colUrl && colUrl.includes('tennisrecord')) trUrl = colUrl;
+    }
+    // Scan remaining cells for any TennisRecord URL if still not found
+    if (!trUrl) {
+      for (let c = 0; c < cols.length; c++) {
+        if (c === iName) continue;
+        const m = cols[c].match(/https?:\/\/[^\s",]+tennisrecord[^\s",]*/i);
+        if (m) { trUrl = m[0]; break; }
+      }
+    }
+    if (trUrl) urlCount++;
+
+    const ratingRaw = get(iRating) || get(iNtrp);
+    const rating    = parseFloat(ratingRaw) || getDefaultRating();
+
+    const rec2026 = parseWL(get(i2026));
+    const recS    = parseWL(get(iSingles));
+    const recD    = parseWL(get(iDoubles));
+
+    const singlesCapable = recS.w + recS.l > 0;
+    const line    = singlesCapable ? 'both' : 'doubles';
+    const wCurr   = rec2026.w || (recS.w + recD.w);
+    const lCurr   = rec2026.l || (recS.l + recD.l);
+    const total   = wCurr + lCurr;
+    const winPct  = total > 0 ? wCurr / total : 0.5;
+    const singlesScore = singlesCapable
+      ? Math.round(20 + rating * 10 + winPct * 20)
+      : Math.round(10 + rating * 5);
+
+    const id = (fname + lname).toLowerCase().replace(/[^a-z]/g, '') + '_' + Date.now() + '_' + i;
+    ROSTER.push({
+      id, name: `${fname} ${lname}`, rating, side: 'both', line,
+      singlesCapable, captain: false,
+      trUrl: trUrl || null,
+      recordPrev: { w: 0, l: 0, year: yr - 1 },
+      recordCurr: { w: wCurr, l: lCurr, sw: recS.w, sl: recS.l, dw: recD.w, dl: recD.l, year: yr },
+      winPct, topPartners: [], tags: [], singlesScore,
+    });
+    available.add(id);
+    existingNames.add(fullName.toLowerCase());
+    added++;
+  }
+
+  persistRoster();
+  renderRoster();
+  updateCount();
+
+  if (added > 0) {
+    const urlNote = urlCount > 0 ? ` · ${urlCount} with TennisRecord URL` : '';
+    fb.innerHTML = `<span style="color:var(--green)">✓ Imported ${added} player${added !== 1 ? 's' : ''}${urlNote}${skipped ? ` · ${skipped} skipped` : ''}</span>`;
+    setTimeout(() => toggleCsvPanel(), 2000);
+  } else {
+    fb.innerHTML = `<span style="color:var(--amber)">No new players imported${skipped ? ` — ${skipped} already on roster` : ''}.</span>`;
+  }
 }
 
 function matchRosterName(namePart) {
@@ -1842,7 +2024,7 @@ function renderDoublesCard(label, teamIds, oppData, score) {
 function renderWarnings(lineup) {
   const warnings = [];
   const p    = id => ROSTER.find(r => r.id === id);
-  const dPairs = [lineup.d1, lineup.d2, lineup.d3];
+  const dPairs = [lineup.d1, lineup.d2, lineup.d3].filter(Boolean);
 
   // Avoided pairings
   for (const pair of dPairs) {
@@ -1926,14 +2108,12 @@ function extractAdultMatches(html) {
       const lower = text.toLowerCase();
       if (/\bcombo\b/.test(lower) || /\bmixed\b/.test(lower)) { inAdult = false; }
       else if (/\badult\b/.test(lower) || /\bntrp\b/.test(lower) || /\bsenior\b/.test(lower)) { inAdult = true; }
-      // Pick up season year from header (e.g. "Spring 2026", "2025 Season")
       const yrM = text.match(/\b(20\d{2})\b/);
       if (yrM) sectionYear = parseInt(yrM[1]);
       continue;
     }
     if (!inAdult) continue;
 
-    // Win/loss detection — match CSS class, result cell text, or W/L text anywhere in row
     const isWin  = /class="[^"]*\bwin\b/i.test(row)
                 || />\s*W\s*<\/(td|th|span)>/i.test(row)
                 || />\s*Won\b/i.test(row);
@@ -1943,17 +2123,12 @@ function extractAdultMatches(html) {
                 || />\s*Loss\b/i.test(row);
     if (!isWin && !isLoss) continue;
 
-    // Opponent rating — first rating-like number in the row
     const oppRating = [...row.matchAll(/\b([2-5]\.\d{2,4})\b/g)]
       .map(m => parseFloat(m[1])).find(r => r >= 2.0 && r <= 5.5) ?? null;
 
-    // Year: try the row text first, fall back to current section year
     const yearMatch = text.match(/\b(20\d{2})\b/);
     const year = yearMatch ? parseInt(yearMatch[1]) : sectionYear;
 
-    // Partner: capture link text from all player profile links in the row.
-    // TennisRecord doubles rows: [partner link] [opp1 link] [opp2 link]
-    // Singles rows: [opp1 link] (only 1 link, so no partner identified)
     const profileLinks = [
       ...row.matchAll(/<a[^>]+href="[^"]*(?:profile|playername)[^"]*"[^>]*>([^<]{2,50})<\/a>/gi),
     ];
@@ -2013,7 +2188,6 @@ async function fetchTennisRecordData(url) {
     return html;
   }).catch(() => null));
 
-  // Wait for first non-null result
   let html = null;
   const results = await Promise.all(proxyAttempts);
   html = results.find(r => r && r.length > 300) || null;
