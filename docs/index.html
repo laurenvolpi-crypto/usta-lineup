@@ -1090,7 +1090,10 @@ function renderRoster() {
     const totalCurr = curr.w + curr.l;
     const pctCurr   = totalCurr > 0 ? Math.round((curr.w / totalCurr) * 100) : null;
 
-    let tagsHTML = `<span class="player-tag tag-rating">${p.rating.toFixed(2)}</span>`;
+    const er = effectiveRating(p);
+    const ratingDiff = er - p.rating;
+    const ratingLabel = er.toFixed(2) + (ratingDiff > 0.01 ? ' ▲' : ratingDiff < -0.01 ? ' ▼' : '');
+    let tagsHTML = `<span class="player-tag tag-rating" title="Computer: ${p.rating.toFixed(2)} · Performance-adj: ${er.toFixed(2)}">${ratingLabel}</span>`;
     if (p.captain) tagsHTML += `<span class="player-tag tag-captain">CPT</span>`;
     if (p.line === 'singles') tagsHTML += `<span class="player-tag tag-singles">Singles</span>`;
     if (p.side === 'ad')    tagsHTML += `<span class="player-tag tag-ad">Ad</span>`;
@@ -1491,7 +1494,10 @@ function openPlayerModal(id, event) {
 
   document.getElementById('pmodal-name').textContent = p.name;
 
-  let badges = `<span class="player-tag tag-rating">${p.rating.toFixed(2)}</span>`;
+  const er = effectiveRating(p);
+  const rDiff = er - p.rating;
+  const rLabel = er.toFixed(2) + (rDiff > 0.01 ? ' ▲' : rDiff < -0.01 ? ' ▼' : '');
+  let badges = `<span class="player-tag tag-rating" title="Computer: ${p.rating.toFixed(2)} · Performance-adj: ${er.toFixed(2)}">${rLabel}</span>`;
   if (p.captain)           badges += `<span class="player-tag tag-captain">Captain</span>`;
   if (p.line === 'singles') badges += `<span class="player-tag tag-singles">Singles</span>`;
   else if (p.line === 'both') badges += `<span class="player-tag tag-singles">S+D</span>`;
@@ -1633,13 +1639,36 @@ function isAvoided(id1, id2) {
   return (ps && ps.avoid) ? ps : null;
 }
 
+// Blend the NTRP computer rating with actual TennisRecord win/loss performance.
+// Players outperforming their rating get a boost; underperforming get a reduction.
+// Adjustment is weighted by match volume (more matches = more confidence).
+// Extra credit for wins against higher-rated opponents (stored via quality-adjusted winPct).
+function effectiveRating(player) {
+  const base = player.rating;
+  const winPct = player.winPct || 0.5;
+  const currTotal = (player.recordCurr?.w || 0) + (player.recordCurr?.l || 0);
+  const prevTotal = (player.recordPrev?.w || 0) + (player.recordPrev?.l || 0);
+  const total = currTotal + prevTotal;
+  if (total < 3) return base; // not enough match data to adjust
+  // Confidence grows with match count, saturates at 15 matches
+  const confidence = Math.min(1, total / 15);
+  // Quality-adjusted winPct already weights wins vs higher-rated opponents more heavily.
+  // Each 10% deviation from 50% ≈ 0.10 rating points at full confidence; cap at ±0.25.
+  const adj = (winPct - 0.5) * 1.0 * confidence;
+  // Additional boost if current-season wins outnumber current-season losses significantly
+  const currW = player.recordCurr?.w || 0;
+  const currL = player.recordCurr?.l || 0;
+  const currBoost = currW + currL >= 4 ? (currW / (currW + currL) - 0.5) * 0.1 * confidence : 0;
+  return parseFloat((base + Math.max(-0.25, Math.min(0.25, adj + currBoost))).toFixed(2));
+}
+
 function lineAdjWinPct(player) {
   // Normalize win% by typical opponent strength at the player's line.
   // Higher-rated players play Line 1 against tougher opponents — raw win% understates ability.
   // Lower-rated players play Line 3 against easier opponents — raw win% overstates ability.
   const raw = player.winPct || 0.5;
-  const teamAvg = ROSTER.reduce((s, p) => s + p.rating, 0) / ROSTER.length;
-  const adj = (player.rating - teamAvg) * 0.75;
+  const teamAvg = ROSTER.reduce((s, p) => s + effectiveRating(p), 0) / ROSTER.length;
+  const adj = (effectiveRating(player) - teamAvg) * 0.75;
   return Math.min(0.95, Math.max(0.05, raw + adj));
 }
 
@@ -1653,6 +1682,8 @@ function scorePartnership(id1, id2) {
     const pct   = total > 0 ? ps.w / total : 0;
     score += pct * 50;
     score += Math.min(total, 8) * 3;
+    // Proven partnership bonus: 2+ wins together gets significant extra weight
+    if (ps.w >= 2) score += Math.min(ps.w, 6) * 8;  // up to 48 pts for 6+ wins
     if (ps.trending === 'up')   score += 12;
     if (ps.trending === 'down') score -= 8;
   }
@@ -1662,7 +1693,7 @@ function scorePartnership(id1, id2) {
   if (sides.includes('ad') && sides.includes('deuce')) score += 18;
   else if (sides.includes('both')) score += 12;
   else if (sides[0] === sides[1])  score -= 5;
-  score += ((p1.rating + p2.rating) / 2 - 3.5) * 30;
+  score += ((effectiveRating(p1) + effectiveRating(p2)) / 2 - 3.5) * 30;
   // Line-adjusted win% (normalizes for opponent strength at each line)
   score += ((lineAdjWinPct(p1) + lineAdjWinPct(p2)) / 2) * 20;
   return score;
@@ -1671,7 +1702,7 @@ function scorePartnership(id1, id2) {
 function scoreSingles(playerId, oppRating, oppAdultWinPct) {
   const p = ROSTER.find(r => r.id === playerId);
   let score = p.singlesScore || 30;
-  if (oppRating) score += (p.rating - oppRating) * 40;
+  if (oppRating) score += (effectiveRating(p) - oppRating) * 40;
   // Line-adjusted win% (normalizes for opponent strength at each line)
   score += lineAdjWinPct(p) * 15;
   if (oppAdultWinPct != null) score -= (oppAdultWinPct - 0.5) * 25;
@@ -1681,7 +1712,7 @@ function scoreSingles(playerId, oppRating, oppAdultWinPct) {
 function scoreDoublesVsOpp(id1, id2, oppAvgRating, oppAvgAdultWinPct) {
   const p1 = ROSTER.find(r => r.id === id1);
   const p2 = ROSTER.find(r => r.id === id2);
-  const teamAvg = (p1.rating + p2.rating) / 2;
+  const teamAvg = (effectiveRating(p1) + effectiveRating(p2)) / 2;
   let score = scorePartnership(id1, id2);
   if (oppAvgRating) score += (teamAvg - oppAvgRating) * 35;
   if (oppAvgAdultWinPct != null) score -= (oppAvgAdultWinPct - 0.5) * 20;
@@ -1933,7 +1964,7 @@ function renderSinglesCard(label, playerId, oppData, score) {
         <span class="rating-edge ${edgeCls}">${edgeTxt}</span>
         <div class="line-matchup">
           <div class="line-team">
-            <div class="line-player">${p.name} <span class="line-player-rating">(${p.rating.toFixed(2)})</span></div>
+            <div class="line-player">${p.name} <span class="line-player-rating">(${effectiveRating(p).toFixed(2)})</span></div>
             <div style="font-size:11px;color:var(--text-light);margin-top:2px">${recTxt}</div>
           </div>
           <div class="line-vs">VS</div>
@@ -2003,8 +2034,8 @@ function renderDoublesCard(label, teamIds, oppData, score) {
         <span class="rating-edge ${edgeCls}">${edgeTxt}</span>
         <div class="line-matchup">
           <div class="line-team">
-            <div class="line-player">${p1.name} ${sideTag(p1.side)} <span class="line-player-rating">(${p1.rating.toFixed(2)})</span></div>
-            <div class="line-player" style="margin-top:4px">${p2.name} ${sideTag(p2.side)} <span class="line-player-rating">(${p2.rating.toFixed(2)})</span></div>
+            <div class="line-player">${p1.name} ${sideTag(p1.side)} <span class="line-player-rating">(${effectiveRating(p1).toFixed(2)})</span></div>
+            <div class="line-player" style="margin-top:4px">${p2.name} ${sideTag(p2.side)} <span class="line-player-rating">(${effectiveRating(p2).toFixed(2)})</span></div>
           </div>
           <div class="line-vs">VS</div>
           <div class="line-opp">
