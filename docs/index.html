@@ -106,6 +106,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--off-white);color:var(--te
 .tag-captain{background:var(--gold-dim);color:var(--gold)}
 .tag-warn{background:var(--red-bg);color:var(--red)}
 .tag-hot{background:var(--green-bg);color:#059669}
+.tag-proven{background:rgba(217,119,6,0.15);color:#D97706}
 
 .select-controls{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
 .select-btn{font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;padding:6px 14px;border-radius:20px;border:1.5px solid var(--light-gray);background:var(--white);color:var(--text-sec);cursor:pointer;transition:all .15s}
@@ -1107,6 +1108,19 @@ function renderRoster() {
       if (!['Hot','Caution'].includes(t))
         tagsHTML += `<span class="player-tag" style="background:#6366F122;color:#6366F1">${t}</span>`;
     });
+    // Proven partnership tag (2+ wins together)
+    const provenPships = PARTNERSHIPS.filter(ps => ps.p.includes(p.id) && !ps.avoid && ps.w >= 2)
+      .sort((a, b) => b.w - a.w || (b.w/(b.w+b.l||1)) - (a.w/(a.w+a.l||1)));
+    if (provenPships.length > 0) {
+      const best = provenPships[0];
+      const pid = best.p.find(x => x !== p.id);
+      const partner = ROSTER.find(r => r.id === pid);
+      if (partner) {
+        const pLast = partner.name.split(' ').pop();
+        const bpct = best.w + best.l > 0 ? Math.round(best.w / (best.w + best.l) * 100) : 0;
+        tagsHTML += `<span class="player-tag tag-proven" title="Proven partnership with ${partner.name}: ${best.w}-${best.l} (${bpct}%)">&#9733; ${pLast} ${best.w}-${best.l}</span>`;
+      }
+    }
 
     let recText;
     if (totalCurr > 0) {
@@ -1609,6 +1623,25 @@ function openPlayerModal(id, event) {
   else if (p.rating <= 3.20)
     patterns.push({ icon:'ℹ️', text:`Lower rating (${p.rating.toFixed(2)}) — pair with higher-rated partner` });
 
+  // Proven partnerships (2+ wins together)
+  PARTNERSHIPS.filter(ps => ps.p.includes(p.id) && !ps.avoid && ps.w >= 2)
+    .sort((a, b) => b.w - a.w)
+    .forEach(ps => {
+      const pid = ps.p.find(x => x !== p.id);
+      const partner = ROSTER.find(r => r.id === pid);
+      if (!partner) return;
+      const tot = ps.w + ps.l;
+      const pct = tot > 0 ? Math.round(ps.w / tot * 100) : 0;
+      patterns.push({ icon:'★', text:`Proven pair with ${partner.name}: ${ps.w}-${ps.l} (${pct}%) — gets extra weight in lineup optimizer` });
+    });
+
+  // Quality wins insight (effective rating vs computer rating)
+  const totalMatches = (p.recordCurr?.w||0)+(p.recordCurr?.l||0)+(p.recordPrev?.w||0)+(p.recordPrev?.l||0);
+  if (rDiff > 0.05 && totalMatches >= 5)
+    patterns.push({ icon:'📊', text:`Outperforms NTRP: wins vs higher-rated opponents push effective rating to ${er.toFixed(2)} (computer: ${p.rating.toFixed(2)})` });
+  else if (rDiff < -0.05 && totalMatches >= 5)
+    patterns.push({ icon:'📊', text:`Underperforms vs NTRP: effective rating ${er.toFixed(2)} (computer: ${p.rating.toFixed(2)}) based on match results` });
+
   const avoids = PARTNERSHIPS.filter(ps => ps.avoid && (ps.p[0] === p.id || ps.p[1] === p.id));
   avoids.forEach(a => {
     const pid   = a.p.find(x => x !== p.id);
@@ -2006,7 +2039,8 @@ function renderDoublesCard(label, teamIds, oppData, score) {
   if (ps && !ps.avoid) {
     const tot = ps.w + ps.l;
     const pct = tot > 0 ? Math.round(ps.w/tot*100) : 0;
-    reasoning += `<span class="partnership-record">${ps.w}-${ps.l} (${pct}%)</span> `;
+    const provenBadge = ps.w >= 2 ? `<span style="background:rgba(217,119,6,0.2);color:#D97706;font-size:10px;font-weight:700;padding:1px 5px;border-radius:3px;margin-right:4px">&#9733; PROVEN</span>` : '';
+    reasoning += `${provenBadge}<span class="partnership-record">${ps.w}-${ps.l} (${pct}%)</span> `;
     if (ps.note) reasoning += ps.note + '. ';
     if (ps.trending === 'up')   reasoning += '<strong style="color:#059669">Trending up.</strong> ';
     if (ps.trending === 'down') reasoning += '<strong style="color:var(--red)">Trending down.</strong> ';
