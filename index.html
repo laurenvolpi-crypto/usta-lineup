@@ -442,24 +442,8 @@ USTA format auto-detected: players marked Available/Yes will be checked in, Not 
           </select>
         </div>
         <div class="add-field">
-          <label class="add-label">Win % (estimate)</label>
+          <label class="add-label">Win % (auto-filled by Lookup)</label>
           <input class="add-input" id="add_winpct" placeholder="50" type="number" step="1">
-        </div>
-        <div class="add-field">
-          <label class="add-label" id="add_w_label">Current Season Wins</label>
-          <input class="add-input" id="add_w26" placeholder="0" type="number" step="1">
-        </div>
-        <div class="add-field">
-          <label class="add-label" id="add_l_label">Current Season Losses</label>
-          <input class="add-input" id="add_l26" placeholder="0" type="number" step="1">
-        </div>
-        <div class="add-field">
-          <label class="add-label" id="add_w25_label">Prior Season Wins</label>
-          <input class="add-input" id="add_w25" placeholder="0" type="number" step="1">
-        </div>
-        <div class="add-field">
-          <label class="add-label" id="add_l25_label">Prior Season Losses</label>
-          <input class="add-input" id="add_l25" placeholder="0" type="number" step="1">
         </div>
       </div>
       <div class="add-actions">
@@ -724,12 +708,6 @@ function applySettings() {
     document.getElementById('logoIcon').innerHTML = '&#127934;';
     document.getElementById('logoTitle').innerHTML = 'LINEUP <span>OPTIMIZER</span>';
   }
-  // Update year labels in add panel
-  const yr = getSeason();
-  document.getElementById('add_w_label').textContent  = yr + ' Wins';
-  document.getElementById('add_l_label').textContent  = yr + ' Losses';
-  document.getElementById('add_w25_label').textContent = (yr-1) + ' Wins';
-  document.getElementById('add_l25_label').textContent = (yr-1) + ' Losses';
 }
 
 function openSettings() {
@@ -776,6 +754,7 @@ let available = new Set(ROSTER.map(p => p.id));
 let mode = "full";
 let format = "standard"; // "standard" = 2S+3D, "short" = 1S+2D
 let _editingPlayerId = null; // non-null when add panel is open in edit mode
+let _pendingRecord = null;   // record fetched from TennisRecord during add/edit lookup
 const oppUrlCache = {}; // url → { record:{w,l}, adultWinPct }
 const _oppFetchTimers = {};
 
@@ -806,8 +785,6 @@ function openEditPanel(id, event) {
   if (!p) return;
 
   _editingPlayerId = id;
-  const curr = p.recordCurr || { w:0, l:0 };
-  const prev = p.recordPrev || { w:0, l:0 };
   const parts = p.name.trim().split(/\s+/);
 
   document.getElementById('add_fname').value   = parts[0] || '';
@@ -816,11 +793,8 @@ function openEditPanel(id, event) {
   document.getElementById('add_side').value    = p.side || 'both';
   document.getElementById('add_line').value    = p.line || 'doubles';
   document.getElementById('add_winpct').value  = Math.round((p.winPct || 0.5) * 100);
-  document.getElementById('add_w26').value     = curr.w || 0;
-  document.getElementById('add_l26').value     = curr.l || 0;
-  document.getElementById('add_w25').value     = prev.w || 0;
-  document.getElementById('add_l25').value     = prev.l || 0;
   document.getElementById('add_url').value     = '';
+  _pendingRecord = p.recordCurr || null;
 
   document.getElementById('addPanelTitle').textContent = 'EDIT PLAYER';
   document.getElementById('addSaveBtn').textContent = 'SAVE CHANGES';
@@ -848,10 +822,8 @@ function saveNewPlayer() {
   const side   = document.getElementById('add_side').value;
   const line   = document.getElementById('add_line').value;
   const winpct = (parseInt(document.getElementById('add_winpct').value) || 50) / 100;
-  const wCurr  = parseInt(document.getElementById('add_w26').value)  || 0;
-  const lCurr  = parseInt(document.getElementById('add_l26').value)  || 0;
-  const wPrev  = parseInt(document.getElementById('add_w25').value)  || 0;
-  const lPrev  = parseInt(document.getElementById('add_l25').value)  || 0;
+  const wCurr  = _pendingRecord?.w ?? 0;
+  const lCurr  = _pendingRecord?.l ?? 0;
 
   if (!fname || !lname) { alert('Please enter first and last name.'); return; }
 
@@ -872,10 +844,10 @@ function saveNewPlayer() {
       p.singlesCapable = singlesCapable;
       p.singlesScore = singlesScore;
       p.winPct       = winpct;
-      p.recordCurr   = { w: wCurr, l: lCurr, year: yr };
-      p.recordPrev   = { w: wPrev, l: lPrev, year: yr - 1 };
+      if (_pendingRecord) p.recordCurr = { w: wCurr, l: lCurr, year: yr };
     }
     _editingPlayerId = null;
+    _pendingRecord = null;
     persistRoster();
     document.getElementById('addPanelTitle').textContent = 'ADD NEW PLAYER';
     document.getElementById('addSaveBtn').textContent = 'ADD TO ROSTER';
@@ -885,7 +857,7 @@ function saveNewPlayer() {
     const newPlayer = {
       id, name: `${fname} ${lname}`, rating, side, line,
       singlesCapable, captain: false,
-      recordPrev: { w: wPrev, l: lPrev, year: yr - 1 },
+      recordPrev: { w: 0, l: 0, year: yr - 1 },
       recordCurr: { w: wCurr, l: lCurr, year: yr },
       winPct: winpct,
       tags: [],
@@ -893,10 +865,11 @@ function saveNewPlayer() {
     };
     ROSTER.push(newPlayer);
     available.add(id);
+    _pendingRecord = null;
     persistRoster();
   }
 
-  ['add_fname','add_lname','add_rating','add_winpct','add_w26','add_l26','add_w25','add_l25'].forEach(f => {
+  ['add_fname','add_lname','add_rating','add_winpct'].forEach(f => {
     document.getElementById(f).value = '';
   });
   document.getElementById('add_url').value = '';
@@ -1917,6 +1890,9 @@ async function lookupAddPlayerUrl() {
     document.getElementById('add_lname').value = parts.slice(1).join(' ') || '';
   }
   document.getElementById('add_rating').value = player.rating;
+  if (player.adultWinPct != null)
+    document.getElementById('add_winpct').value = Math.round(player.adultWinPct * 100);
+  if (player.record) _pendingRecord = player.record;
 }
 
 async function fillFromPaste() {
