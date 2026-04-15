@@ -231,6 +231,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--off-white);color:var(--te
 .add-cancel:hover{border-color:var(--text-sec)}
 .player-row .remove-btn{position:absolute;top:4px;right:4px;width:18px;height:18px;border-radius:50%;border:none;background:var(--red-bg);color:var(--red);font-size:11px;cursor:pointer;display:none;align-items:center;justify-content:center;line-height:1}
 .player-row.removable .remove-btn{display:flex}
+.player-row .edit-btn{position:absolute;top:4px;right:26px;width:18px;height:18px;border-radius:50%;border:none;background:rgba(99,102,241,0.12);color:#6366F1;font-size:10px;cursor:pointer;display:none;align-items:center;justify-content:center;line-height:1}
+.player-row.removable .edit-btn{display:flex}
+.pmodal-edit-btn{margin:0 20px 20px;padding:9px 18px;border-radius:var(--radius-sm);border:1.5px solid var(--gold);background:var(--gold-dim);color:var(--gold);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;width:calc(100% - 40px);transition:all .15s}
+.pmodal-edit-btn:hover{background:var(--gold);color:var(--navy)}
 
 /* PARTNERSHIPS PANEL */
 .pship-btn{font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;padding:6px 14px;border-radius:20px;border:1.5px solid var(--navy);background:rgba(11,26,46,.06);color:var(--navy);cursor:pointer;transition:all .15s}
@@ -400,7 +404,7 @@ USTA format auto-detected: players marked Available/Yes will be checked in, Not 
     </div>
 
     <div class="add-panel" id="addPanel">
-      <div class="add-panel-title">ADD NEW PLAYER</div>
+      <div class="add-panel-title" id="addPanelTitle">ADD NEW PLAYER</div>
       <div class="add-grid">
         <div class="add-field full">
           <label class="add-label">TennisRecord URL (auto-fills name &amp; rating)</label>
@@ -460,7 +464,7 @@ USTA format auto-detected: players marked Available/Yes will be checked in, Not 
       </div>
       <div class="add-actions">
         <button class="add-cancel" onclick="toggleAddPanel()">Cancel</button>
-        <button class="add-save" onclick="saveNewPlayer()">ADD TO ROSTER</button>
+        <button class="add-save" onclick="saveNewPlayer()" id="addSaveBtn">ADD TO ROSTER</button>
       </div>
     </div>
 
@@ -684,6 +688,7 @@ D2: Fiona Lee 3.62, Grace Kim 3.58"></textarea>
     </div>
     <div class="pmodal-badges" id="pmodal-badges"></div>
     <div class="pmodal-body" id="pmodal-body"></div>
+    <button class="pmodal-edit-btn" id="pmodalEditBtn" onclick="editFromModal()">&#9998; Edit Player Info</button>
   </div>
 </div>
 
@@ -770,6 +775,7 @@ let PARTNERSHIPS = loadPartnerships();
 let available = new Set(ROSTER.map(p => p.id));
 let mode = "full";
 let format = "standard"; // "standard" = 2S+3D, "short" = 1S+2D
+let _editingPlayerId = null; // non-null when add panel is open in edit mode
 const oppUrlCache = {}; // url → { record:{w,l}, adultWinPct }
 const _oppFetchTimers = {};
 
@@ -783,8 +789,56 @@ function init() {
 // ===================== SETTINGS PANEL =====================
 function toggleAddPanel() {
   const panel = document.getElementById('addPanel');
+  const wasOpen = panel.classList.contains('open');
   panel.classList.toggle('open');
-  if (panel.classList.contains('open')) document.getElementById('add_fname').focus();
+  if (!wasOpen) {
+    // Opening for a new player — reset edit state and labels
+    _editingPlayerId = null;
+    document.getElementById('addPanelTitle').textContent = 'ADD NEW PLAYER';
+    document.getElementById('addSaveBtn').textContent = 'ADD TO ROSTER';
+    document.getElementById('add_fname').focus();
+  }
+}
+
+function openEditPanel(id, event) {
+  event.stopPropagation();
+  const p = ROSTER.find(r => r.id === id);
+  if (!p) return;
+
+  _editingPlayerId = id;
+  const curr = p.recordCurr || { w:0, l:0 };
+  const prev = p.recordPrev || { w:0, l:0 };
+  const parts = p.name.trim().split(/\s+/);
+
+  document.getElementById('add_fname').value   = parts[0] || '';
+  document.getElementById('add_lname').value   = parts.slice(1).join(' ') || '';
+  document.getElementById('add_rating').value  = p.rating;
+  document.getElementById('add_side').value    = p.side || 'both';
+  document.getElementById('add_line').value    = p.line || 'doubles';
+  document.getElementById('add_winpct').value  = Math.round((p.winPct || 0.5) * 100);
+  document.getElementById('add_w26').value     = curr.w || 0;
+  document.getElementById('add_l26').value     = curr.l || 0;
+  document.getElementById('add_w25').value     = prev.w || 0;
+  document.getElementById('add_l25').value     = prev.l || 0;
+  document.getElementById('add_url').value     = '';
+
+  document.getElementById('addPanelTitle').textContent = 'EDIT PLAYER';
+  document.getElementById('addSaveBtn').textContent = 'SAVE CHANGES';
+
+  // Close the info modal if open
+  document.getElementById('pmodalOverlay').classList.remove('open');
+
+  const panel = document.getElementById('addPanel');
+  panel.classList.add('open');
+  document.getElementById('add_fname').focus();
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function editFromModal() {
+  const name = document.getElementById('pmodal-name').textContent;
+  const p = ROSTER.find(r => r.name === name);
+  if (!p) return;
+  openEditPanel(p.id, { stopPropagation: () => {} });
 }
 
 function saveNewPlayer() {
@@ -801,26 +855,46 @@ function saveNewPlayer() {
 
   if (!fname || !lname) { alert('Please enter first and last name.'); return; }
 
-  const id = (fname + lname).toLowerCase().replace(/[^a-z]/g, '') + '_' + Date.now();
   const singlesCapable = (line === 'singles' || line === 'both');
   const singlesScore   = singlesCapable
     ? Math.round(20 + rating * 10 + winpct * 20)
     : Math.round(10 + rating * 5);
-
   const yr = getSeason();
-  const newPlayer = {
-    id, name: `${fname} ${lname}`, rating, side, line,
-    singlesCapable, captain: false,
-    recordPrev: { w: wPrev, l: lPrev, year: yr - 1 },
-    recordCurr: { w: wCurr, l: lCurr, year: yr },
-    winPct: winpct,
-    tags: [],
-    singlesScore,
-  };
 
-  ROSTER.push(newPlayer);
-  available.add(id);
-  persistRoster();
+  if (_editingPlayerId) {
+    // Edit mode — update the existing player in place
+    const p = ROSTER.find(r => r.id === _editingPlayerId);
+    if (p) {
+      p.name         = `${fname} ${lname}`;
+      p.rating       = rating;
+      p.side         = side;
+      p.line         = line;
+      p.singlesCapable = singlesCapable;
+      p.singlesScore = singlesScore;
+      p.winPct       = winpct;
+      p.recordCurr   = { w: wCurr, l: lCurr, year: yr };
+      p.recordPrev   = { w: wPrev, l: lPrev, year: yr - 1 };
+    }
+    _editingPlayerId = null;
+    persistRoster();
+    document.getElementById('addPanelTitle').textContent = 'ADD NEW PLAYER';
+    document.getElementById('addSaveBtn').textContent = 'ADD TO ROSTER';
+  } else {
+    // Add mode — create a new player
+    const id = (fname + lname).toLowerCase().replace(/[^a-z]/g, '') + '_' + Date.now();
+    const newPlayer = {
+      id, name: `${fname} ${lname}`, rating, side, line,
+      singlesCapable, captain: false,
+      recordPrev: { w: wPrev, l: lPrev, year: yr - 1 },
+      recordCurr: { w: wCurr, l: lCurr, year: yr },
+      winPct: winpct,
+      tags: [],
+      singlesScore,
+    };
+    ROSTER.push(newPlayer);
+    available.add(id);
+    persistRoster();
+  }
 
   ['add_fname','add_lname','add_rating','add_winpct','add_w26','add_l26','add_w25','add_l25'].forEach(f => {
     document.getElementById(f).value = '';
@@ -828,7 +902,7 @@ function saveNewPlayer() {
   document.getElementById('add_url').value = '';
   document.getElementById('add_side').value = 'ad';
   document.getElementById('add_line').value = 'doubles';
-  toggleAddPanel();
+  document.getElementById('addPanel').classList.remove('open');
   renderRoster();
   updateCount();
 }
@@ -975,6 +1049,7 @@ function renderRoster() {
           <div class="player-meta">${tagsHTML}</div>
           <div class="player-meta" style="margin-top:3px;font-size:10px;color:var(--text-light)">${recText}</div>
         </div>
+        <button class="edit-btn" onclick="openEditPanel('${p.id}', event)" title="Edit player">&#9998;</button>
         <button class="remove-btn" onclick="removePlayer('${p.id}', event)" title="Remove player">&times;</button>
       </div>`;
   }).join('');
