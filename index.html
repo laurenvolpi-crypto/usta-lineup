@@ -415,7 +415,7 @@ USTA format auto-detected: players marked Available/Yes will be checked in, Not 
           <div id="addLookupFeedback" style="font-size:11px;margin-top:5px;min-height:16px"></div>
         </div>
         <div class="add-field full">
-          <label class="add-label">Paste TennisRecord page source <span style="font-weight:400;color:var(--text-sec)">— open player page → right-click → View Page Source → Select All → paste here</span></label>
+          <label class="add-label">Paste TennisRecord page source <span style="font-weight:400;color:var(--text-sec)">— if auto-fetch fails: open player page in browser → press <strong>Ctrl+U</strong> (Mac: <strong>⌘+Option+U</strong>) → <strong>Ctrl+A</strong> → <strong>Ctrl+C</strong> → paste here</span></label>
           <div class="url-lookup-row" style="align-items:flex-start">
             <textarea class="url-lookup-input" id="add_tr_paste" rows="3" placeholder="Paste page source here…" style="resize:vertical;font-size:11px;font-family:monospace;line-height:1.4"></textarea>
             <button class="url-lookup-btn" id="addParseBtn" onclick="parsePlayerFromPaste()">Parse</button>
@@ -1988,30 +1988,38 @@ function extractAdultMatches(html) {
   return { wins, losses, winOppRatings, lossOppRatings, byYear, partnerRec };
 }
 
+// Fetch with an explicit timeout (AbortSignal.timeout not available in all browsers)
+function _fetchTimeout(url, ms) {
+  const ctrl = new AbortController();
+  const id = setTimeout(() => ctrl.abort(), ms);
+  return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(id));
+}
+
 async function fetchTennisRecordData(url) {
-  try {
-    // Try multiple CORS proxies in order
-    let html = null;
-    const proxies = [
-      async () => {
-        const r = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(url),
-          { signal: AbortSignal.timeout(10000) });
-        if (!r.ok) return null;
-        const d = await r.json(); return d.contents || null;
-      },
-      async () => {
-        const r = await fetch('https://corsproxy.io/?' + encodeURIComponent(url),
-          { signal: AbortSignal.timeout(10000) });
-        if (!r.ok) return null;
-        return await r.text();
-      },
-    ];
-    for (const proxy of proxies) {
-      try { const h = await proxy(); if (h && h.length > 300) { html = h; break; } } catch {}
-    }
-    if (!html) return null;
-    return parsePlayerFromHtml(html, url);
-  } catch(e) { return null; }
+  const enc = encodeURIComponent(url);
+
+  // Race all proxies in parallel — use whichever returns valid HTML first
+  const proxyAttempts = [
+    _fetchTimeout(`https://api.allorigins.win/get?url=${enc}`, 12000)
+      .then(r => r.json()).then(d => d.contents || ''),
+    _fetchTimeout(`https://api.allorigins.win/raw?url=${enc}`, 12000)
+      .then(r => r.text()),
+    _fetchTimeout(`https://corsproxy.io/?${enc}`, 12000)
+      .then(r => r.text()),
+    _fetchTimeout(`https://api.codetabs.com/v1/proxy?quest=${enc}`, 12000)
+      .then(r => r.text()),
+  ].map(p => p.then(html => {
+    if (!html || html.length < 300) throw new Error('empty');
+    return html;
+  }).catch(() => null));
+
+  // Wait for first non-null result
+  let html = null;
+  const results = await Promise.all(proxyAttempts);
+  html = results.find(r => r && r.length > 300) || null;
+
+  if (!html) return null;
+  return parsePlayerFromHtml(html, url);
 }
 
 // Shared parser — takes raw HTML (from proxy fetch or user paste) + optional URL for name hint
@@ -2120,7 +2128,7 @@ async function lookupAddPlayerUrl() {
   btn.textContent = 'Lookup'; btn.disabled = false;
 
   if (!player) {
-    fb.innerHTML = '<span style="color:var(--red)">Could not reach TennisRecord. Try pasting the page source below instead.</span>';
+    fb.innerHTML = '<span style="color:var(--red)">Auto-fetch failed. Open the player page in your browser → press <strong>Ctrl+U</strong> (Mac: <strong>⌘+Option+U</strong>) → Ctrl+A → Ctrl+C → paste into the field below.</span>';
     return;
   }
   applyPlayerDataToForm(player, fb);
