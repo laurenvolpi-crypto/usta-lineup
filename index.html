@@ -407,11 +407,12 @@ USTA format auto-detected: players marked Available/Yes will be checked in, Not 
       <div class="add-panel-title" id="addPanelTitle">ADD NEW PLAYER</div>
       <div class="add-grid">
         <div class="add-field full">
-          <label class="add-label">TennisRecord URL (auto-fills name &amp; rating)</label>
+          <label class="add-label">TennisRecord URL (auto-fills all fields)</label>
           <div class="url-lookup-row">
             <input class="url-lookup-input" id="add_url" placeholder="https://www.tennisrecord.com/adult/profile.aspx?playername=...">
             <button class="url-lookup-btn" id="addLookupBtn" onclick="lookupAddPlayerUrl()">Lookup</button>
           </div>
+          <div id="addLookupFeedback" style="font-size:11px;margin-top:5px;min-height:16px"></div>
         </div>
         <div class="add-field">
           <label class="add-label">First Name</label>
@@ -800,6 +801,7 @@ function toggleAddPanel() {
     _editingPlayerId = null;
     document.getElementById('addPanelTitle').textContent = 'ADD NEW PLAYER';
     document.getElementById('addSaveBtn').textContent = 'ADD TO ROSTER';
+    document.getElementById('addLookupFeedback').innerHTML = '';
     document.getElementById('add_fname').focus();
   }
 }
@@ -1850,32 +1852,50 @@ function extractAdultMatches(html) {
   const partnerRec = {};  // { "Jane Smith": {w,l}, ... }
   const rows = html.match(/<tr[\s\S]*?<\/tr>/gi) || [];
   let inAdult = true;
+  let sectionYear = null; // year inferred from section/season headers
+
   for (const row of rows) {
     const text = row.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-    if (/colspan\s*=\s*["']?\d+/i.test(row) && text.length < 120) {
+    // Section header rows (contain colspan and are short)
+    if (/colspan\s*=\s*["']?\d+/i.test(row) && text.length < 180) {
       const lower = text.toLowerCase();
-      if (/\bcombo\b/.test(lower) || /\bmixed\b/.test(lower)) { inAdult = false; continue; }
-      if (/\badult\b/.test(lower) || /\bntrp\b/.test(lower) || /\bsenior\b/.test(lower)) { inAdult = true; continue; }
+      if (/\bcombo\b/.test(lower) || /\bmixed\b/.test(lower)) { inAdult = false; }
+      else if (/\badult\b/.test(lower) || /\bntrp\b/.test(lower) || /\bsenior\b/.test(lower)) { inAdult = true; }
+      // Pick up season year from header (e.g. "Spring 2026", "2025 Season")
+      const yrM = text.match(/\b(20\d{2})\b/);
+      if (yrM) sectionYear = parseInt(yrM[1]);
+      continue;
     }
     if (!inAdult) continue;
-    const isWin  = /class="[^"]*\bwin\b/i.test(row)  || />\s*W\s*<\/(td|th)>/i.test(row);
-    const isLoss = /class="[^"]*\bloss\b/i.test(row) || />\s*L\s*<\/(td|th)>/i.test(row);
+
+    // Win/loss detection — match CSS class, result cell text, or W/L text anywhere in row
+    const isWin  = /class="[^"]*\bwin\b/i.test(row)
+                || />\s*W\s*<\/(td|th|span)>/i.test(row)
+                || />\s*Won\b/i.test(row);
+    const isLoss = /class="[^"]*\bloss\b/i.test(row)
+                || />\s*L\s*<\/(td|th|span)>/i.test(row)
+                || />\s*Lost\b/i.test(row)
+                || />\s*Loss\b/i.test(row);
     if (!isWin && !isLoss) continue;
+
+    // Opponent rating — first rating-like number in the row
     const oppRating = [...row.matchAll(/\b([234]\.\d{2,4})\b/g)]
       .map(m => parseFloat(m[1])).find(r => r >= 2.5 && r <= 4.5) ?? null;
 
-    // Extract match year from date patterns (MM/DD/YYYY or YYYY)
+    // Year: try the row text first, fall back to current section year
     const yearMatch = text.match(/\b(20\d{2})\b/);
-    const year = yearMatch ? parseInt(yearMatch[1]) : null;
+    const year = yearMatch ? parseInt(yearMatch[1]) : sectionYear;
 
-    // Extract partner name — first profile link in the row (doubles rows have a partner link
-    // before opponent links; singles rows typically have no partner link)
-    const profileLinks = [...row.matchAll(/<a[^>]+href="[^"]*playername=([^"&\s]+)"[^>]*>([^<]+)<\/a>/gi)];
+    // Partner: capture link text from all player profile links in the row.
+    // TennisRecord doubles rows: [partner link] [opp1 link] [opp2 link]
+    // Singles rows: [opp1 link] (only 1 link, so no partner identified)
+    const profileLinks = [
+      ...row.matchAll(/<a[^>]+href="[^"]*(?:profile|playername)[^"]*"[^>]*>([^<]{2,50})<\/a>/gi),
+    ];
     let partnerName = null;
     if (profileLinks.length >= 2) {
-      // Multiple links → doubles match; first link is the partner
-      const raw = decodeURIComponent(profileLinks[0][2]).replace(/\+/g, ' ').trim();
-      if (/[A-Za-z]/.test(raw) && raw.length > 2 && raw.length < 60) partnerName = raw;
+      const raw = profileLinks[0][1].trim();
+      if (/[A-Za-z]/.test(raw)) partnerName = raw;
     }
 
     if (isWin) {
@@ -1895,20 +1915,56 @@ function extractAdultMatches(html) {
 
 async function fetchTennisRecordData(url) {
   try {
-    const proxy = 'https://api.allorigins.win/get?url=' + encodeURIComponent(url);
-    const resp = await fetch(proxy);
-    const data = await resp.json();
-    const raw  = data.contents || '';
-    const html = raw.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<style[\s\S]*?<\/style>/gi, '');
-    const nm   = url.match(/playername=([^&]+)/i);
-    let name   = nm ? decodeURIComponent(nm[1]).replace(/\+/g, ' ') : null;
-    if (!name) { const t = html.match(/<title[^>]*>([^<|]+)/i); name = t ? t[1].trim() : 'Unknown'; }
-    let rating = null;
-    for (const m of [...html.matchAll(/(\d\.\d{4})/g)]) {
-      const ctx = html.slice(Math.max(0, m.index - 300), m.index).toLowerCase();
-      if (!ctx.includes('combo') && !ctx.includes('mixed')) { rating = parseFloat(m[1]); break; }
+    // Try multiple CORS proxies in order
+    let html = null;
+    const proxies = [
+      async () => {
+        const r = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(url),
+          { signal: AbortSignal.timeout(10000) });
+        if (!r.ok) return null;
+        const d = await r.json(); return d.contents || null;
+      },
+      async () => {
+        const r = await fetch('https://corsproxy.io/?' + encodeURIComponent(url),
+          { signal: AbortSignal.timeout(10000) });
+        if (!r.ok) return null;
+        return await r.text();
+      },
+    ];
+    for (const proxy of proxies) {
+      try { const h = await proxy(); if (h && h.length > 300) { html = h; break; } } catch {}
     }
-    if (!rating) { const rm = html.match(/(\d\.\d{4})/); if (rm) rating = parseFloat(rm[1]); }
+    if (!html) return null;
+
+    html = html.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<style[\s\S]*?<\/style>/gi, '');
+
+    // Name: URL param → page title → first h1/h2
+    const nm = url.match(/playername=([^&]+)/i);
+    let name = nm ? decodeURIComponent(nm[1]).replace(/\+/g, ' ').trim() : null;
+    if (!name) {
+      const t = html.match(/<title[^>]*>([^<|]+)/i);
+      name = t ? t[1].replace(/\s*[-–|].*$/, '').trim() : null;
+    }
+    if (!name) {
+      const h = html.match(/<h[12][^>]*>\s*([^<]{3,60})\s*<\/h[12]>/i);
+      if (h) name = h[1].trim();
+    }
+    name = name || 'Unknown';
+
+    // Rating: try labelled patterns first, then any X.XXXX not near combo/mixed
+    let rating = null;
+    const labeledRating = html.match(/(?:dynamic\s+)?ntrp\s+rating[^0-9]*([34]\.\d{2,4})/i)
+                       || html.match(/current\s+rating[^0-9]*([34]\.\d{2,4})/i)
+                       || html.match(/rating[^0-9]*([34]\.\d{4})/i);
+    if (labeledRating) {
+      rating = parseFloat(labeledRating[1]);
+    } else {
+      for (const m of [...html.matchAll(/\b([34]\.\d{4})\b/g)]) {
+        const ctx = html.slice(Math.max(0, m.index - 400), m.index).toLowerCase();
+        if (!ctx.includes('combo') && !ctx.includes('mixed')) { rating = parseFloat(m[1]); break; }
+      }
+      if (!rating) { const rm = html.match(/\b([34]\.\d{4})\b/); if (rm) rating = parseFloat(rm[1]); }
+    }
     const { wins, losses, winOppRatings, lossOppRatings, byYear, partnerRec } = extractAdultMatches(html);
     const total = wins + losses;
     let adultWinPct = total > 0 ? wins / total : null;
@@ -1972,31 +2028,68 @@ async function lookupAddPlayerUrl() {
   const url = document.getElementById('add_url').value.trim();
   if (!url) return;
   const btn = document.getElementById('addLookupBtn');
-  btn.textContent = '...'; btn.disabled = true;
+  const fb  = document.getElementById('addLookupFeedback');
+  btn.textContent = 'Loading…'; btn.disabled = true;
+  fb.innerHTML = '<span style="color:var(--text-sec)">Fetching from TennisRecord…</span>';
+
   const player = await fetchTennisRecordRating(url);
   btn.textContent = 'Lookup'; btn.disabled = false;
-  if (!player) { alert('Could not fetch rating. Check the URL and try again.'); return; }
+
+  if (!player) {
+    fb.innerHTML = '<span style="color:var(--red)">Could not reach TennisRecord. Check the URL or try again.</span>';
+    return;
+  }
+
+  const found = [], missing = [];
+
+  // Name
   if (player.name && player.name !== 'Unknown') {
     const parts = player.name.trim().split(/\s+/);
     document.getElementById('add_fname').value = parts[0] || '';
     document.getElementById('add_lname').value = parts.slice(1).join(' ') || '';
-  }
-  document.getElementById('add_rating').value = player.rating;
-  if (player.adultWinPct != null)
+    found.push('name');
+  } else { missing.push('name'); }
+
+  // Rating
+  if (player.rating) {
+    document.getElementById('add_rating').value = player.rating;
+    found.push('rating');
+  } else { missing.push('rating'); }
+
+  // Win %
+  if (player.adultWinPct != null) {
     document.getElementById('add_winpct').value = Math.round(player.adultWinPct * 100);
-  if (player.recordCurr) {
-    document.getElementById('add_wcurr').value = player.recordCurr.w;
-    document.getElementById('add_lcurr').value = player.recordCurr.l;
+    found.push('win%');
   }
-  if (player.recordPrev) {
-    document.getElementById('add_wprev').value = player.recordPrev.w;
-    document.getElementById('add_lprev').value = player.recordPrev.l;
+
+  // Season records
+  const totalMatches = (player.record?.w || 0) + (player.record?.l || 0);
+  if (totalMatches > 0) {
+    document.getElementById('add_wcurr').value = player.recordCurr?.w ?? 0;
+    document.getElementById('add_lcurr').value = player.recordCurr?.l ?? 0;
+    document.getElementById('add_wprev').value = player.recordPrev?.w ?? 0;
+    document.getElementById('add_lprev').value = player.recordPrev?.l ?? 0;
+    found.push(`records (${totalMatches} matches)`);
+  } else {
+    missing.push('match history');
   }
-  if (player.topPartners && player.topPartners.length > 0) {
+
+  // Partners
+  if (player.topPartners?.length > 0) {
     document.getElementById('add_partners').value =
       player.topPartners.map(p => `${p.name} (${p.w}-${p.l})`).join(', ');
+    found.push('partners');
+  } else if (totalMatches > 0) {
+    missing.push('partner data');
   }
+
   _pendingRecord = { recordCurr: player.recordCurr, recordPrev: player.recordPrev, topPartners: player.topPartners || [] };
+
+  // Feedback
+  let msg = '';
+  if (found.length)   msg += `<span style="color:var(--green)">✓ ${found.join(', ')}</span>`;
+  if (missing.length) msg += `${found.length ? '&nbsp;&nbsp;' : ''}<span style="color:var(--text-sec)">✗ not found: ${missing.join(', ')}</span>`;
+  fb.innerHTML = msg;
 }
 
 async function fillFromPaste() {
