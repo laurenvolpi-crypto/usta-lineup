@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tennis Lineup — Docs</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%23C8E63C'/%3E%3Cpath d='M 18 28 Q 50 50 18 72' fill='none' stroke='white' stroke-width='6' stroke-linecap='round'/%3E%3Cpath d='M 82 28 Q 50 50 82 72' fill='none' stroke='white' stroke-width='6' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#0B1A2E;--navy-mid:#152238;--navy-light:#1E2D45;--navy-border:#253550;
+  --gold:#C8A951;--gold-light:#D4B96A;--gold-dim:rgba(200,169,81,.12);
+  --white:#FFFFFF;--off-white:#F8F9FB;--light-gray:#E5E7EB;
+  --text:#1A2332;--text-sec:#4B5563;--text-light:#9CA3AF;
+  --green:#16A34A;--green-bg:#F0FDF4;
+  --blue:#2563EB;--blue-bg:#EFF6FF;
+  --amber:#D97706;--amber-bg:#FFFBEB;
+  --radius:10px;--sidebar:260px;
+}
+body{font-family:'DM Sans',sans-serif;background:var(--off-white);color:var(--text);line-height:1.6;min-height:100vh;display:flex;flex-direction:column}
+
+/* ── TOP NAV ── */
+.topnav{height:56px;background:var(--navy);display:flex;align-items:center;justify-content:space-between;padding:0 20px;position:sticky;top:0;z-index:100;border-bottom:1px solid var(--navy-border)}
+.topnav-left{display:flex;align-items:center;gap:12px}
+.topnav-logo{display:flex;align-items:center;gap:8px;text-decoration:none}
+.topnav-logo svg{width:28px;height:28px}
+.topnav-logo-text{color:var(--white);font-weight:600;font-size:15px}
+.topnav-logo-badge{color:var(--gold);font-size:11px;font-weight:600;background:var(--gold-dim);border:1px solid rgba(200,169,81,.25);padding:2px 8px;border-radius:20px;margin-left:4px}
+.topnav-back{color:var(--text-light);font-size:13px;text-decoration:none;display:flex;align-items:center;gap:5px;transition:color .15s}
+.topnav-back:hover{color:var(--gold)}
+.topnav-back svg{width:14px;height:14px}
+.hamburger{display:none;background:none;border:none;cursor:pointer;padding:4px;color:var(--text-light)}
+.hamburger svg{width:22px;height:22px}
+
+/* ── LAYOUT ── */
+.layout{display:flex;flex:1;max-width:1200px;margin:0 auto;width:100%;padding:0}
+
+/* ── SIDEBAR ── */
+.sidebar{width:var(--sidebar);flex-shrink:0;padding:24px 0;position:sticky;top:56px;height:calc(100vh - 56px);overflow-y:auto;border-right:1px solid var(--light-gray)}
+.sidebar-section{margin-bottom:8px}
+.sidebar-section-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-light);padding:6px 20px;margin-bottom:2px}
+.sidebar-link{display:block;padding:7px 20px;font-size:14px;font-weight:400;color:var(--text-sec);text-decoration:none;border-radius:0;transition:all .12s;border-left:2px solid transparent;cursor:pointer}
+.sidebar-link:hover{color:var(--text);background:rgba(0,0,0,.04);border-left-color:var(--light-gray)}
+.sidebar-link.active{color:var(--navy);font-weight:600;background:var(--gold-dim);border-left-color:var(--gold)}
+
+/* ── CONTENT ── */
+.content{flex:1;padding:40px 48px;max-width:760px;min-width:0}
+.page{display:none}
+.page.active{display:block}
+
+/* ── PROSE ── */
+.prose h1{font-size:28px;font-weight:700;color:var(--navy);margin-bottom:8px;line-height:1.25}
+.prose .subtitle{font-size:16px;color:var(--text-sec);margin-bottom:32px;border-bottom:1px solid var(--light-gray);padding-bottom:24px}
+.prose h2{font-size:18px;font-weight:600;color:var(--navy);margin:32px 0 12px;padding-top:4px}
+.prose h3{font-size:15px;font-weight:600;color:var(--text);margin:20px 0 8px}
+.prose p{margin-bottom:14px;font-size:15px;color:var(--text-sec);line-height:1.65}
+.prose ul,.prose ol{padding-left:20px;margin-bottom:14px}
+.prose li{font-size:15px;color:var(--text-sec);margin-bottom:6px;line-height:1.65}
+.prose strong{color:var(--text);font-weight:600}
+.prose code{font-family:monospace;background:#F1F3F5;padding:2px 6px;border-radius:4px;font-size:13px;color:var(--navy)}
+.prose a{color:var(--blue);text-decoration:none}
+.prose a:hover{text-decoration:underline}
+
+/* ── CALLOUTS ── */
+.callout{display:flex;gap:12px;padding:14px 16px;border-radius:var(--radius);margin-bottom:20px;font-size:14px;line-height:1.6}
+.callout-tip{background:var(--green-bg);border:1px solid #BBF7D0;color:#166534}
+.callout-info{background:var(--blue-bg);border:1px solid #BFDBFE;color:#1E40AF}
+.callout-warning{background:var(--amber-bg);border:1px solid #FDE68A;color:#92400E}
+.callout-icon{font-size:16px;flex-shrink:0;margin-top:1px}
+.callout strong{display:block;margin-bottom:3px}
+
+/* ── STEPS ── */
+.steps{margin:20px 0}
+.step{display:flex;gap:14px;margin-bottom:20px}
+.step-num{width:28px;height:28px;border-radius:50%;background:var(--navy);color:var(--gold);font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.step-body h3{margin:0 0 4px;font-size:15px;font-weight:600;color:var(--navy)}
+.step-body p{margin:0;font-size:14px;color:var(--text-sec)}
+
+/* ── FIELD TABLE ── */
+.field-table{width:100%;border-collapse:collapse;margin-bottom:24px;font-size:14px}
+.field-table th{text-align:left;padding:9px 12px;background:var(--navy);color:var(--gold);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.05em}
+.field-table th:first-child{border-radius:var(--radius) 0 0 0}
+.field-table th:last-child{border-radius:0 var(--radius) 0 0}
+.field-table td{padding:10px 12px;border-bottom:1px solid var(--light-gray);vertical-align:top}
+.field-table tr:last-child td{border-bottom:none}
+.field-table tr:hover td{background:rgba(0,0,0,.02)}
+.badge-req{background:#FEE2E2;color:#DC2626;font-size:11px;font-weight:600;padding:1px 6px;border-radius:10px}
+.badge-opt{background:#F3F4F6;color:var(--text-sec);font-size:11px;font-weight:600;padding:1px 6px;border-radius:10px}
+
+/* ── POSITION CARDS ── */
+.position-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0}
+.pos-card{background:var(--white);border:1px solid var(--light-gray);border-radius:var(--radius);padding:16px}
+.pos-card-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-light);margin-bottom:4px}
+.pos-card-name{font-size:16px;font-weight:700;color:var(--navy);margin-bottom:6px}
+.pos-card-desc{font-size:13px;color:var(--text-sec);line-height:1.5}
+.pos-card.gold{border-color:var(--gold);background:var(--gold-dim)}
+
+/* ── BADGE PILLS ── */
+.badge-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:13px;font-weight:500;margin:2px}
+.bp-hot{background:#FEF3C7;color:#92400E}
+.bp-improving{background:#D1FAE5;color:#065F46}
+.bp-caution{background:#FEE2E2;color:#991B1B}
+.bp-cpt{background:var(--gold-dim);color:#78350F;border:1px solid rgba(200,169,81,.3)}
+
+/* ── FAQ ── */
+.faq-item{border:1px solid var(--light-gray);border-radius:var(--radius);margin-bottom:10px;overflow:hidden}
+.faq-q{padding:14px 16px;font-weight:600;font-size:14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;background:var(--white);transition:background .12s}
+.faq-q:hover{background:var(--off-white)}
+.faq-q.open{background:var(--gold-dim);color:var(--navy)}
+.faq-q .chevron{transition:transform .2s;font-size:12px;color:var(--text-light)}
+.faq-q.open .chevron{transform:rotate(180deg)}
+.faq-a{display:none;padding:14px 16px;font-size:14px;color:var(--text-sec);background:var(--white);border-top:1px solid var(--light-gray);line-height:1.65}
+.faq-a.open{display:block}
+
+/* ── TROUBLE ── */
+.trouble-item{border:1px solid var(--light-gray);border-radius:var(--radius);margin-bottom:12px;overflow:hidden}
+.trouble-issue{padding:12px 16px;background:var(--white);font-weight:600;font-size:14px;color:var(--navy);display:flex;align-items:center;gap:8px}
+.trouble-issue::before{content:"⚠";font-size:13px;color:var(--amber)}
+.trouble-fix{padding:12px 16px;background:var(--off-white);border-top:1px solid var(--light-gray)}
+.trouble-fix ul{padding-left:16px;margin:0}
+.trouble-fix li{font-size:14px;color:var(--text-sec);margin-bottom:4px}
+
+/* ── QUICKSTART HERO ── */
+.qs-hero{background:var(--navy);border-radius:14px;padding:28px 32px;margin-bottom:32px;color:var(--white)}
+.qs-hero h2{color:var(--gold);font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+.qs-hero p{font-size:15px;color:rgba(255,255,255,.75);margin:0}
+
+/* ── MOBILE ── */
+@media(max-width:768px){
+  .sidebar{display:none;position:fixed;top:56px;left:0;width:80%;max-width:300px;height:calc(100vh - 56px);z-index:90;background:var(--white);box-shadow:4px 0 20px rgba(0,0,0,.15)}
+  .sidebar.open{display:block}
+  .sidebar-overlay{display:none;position:fixed;inset:0;top:56px;background:rgba(0,0,0,.4);z-index:89}
+  .sidebar-overlay.open{display:block}
+  .hamburger{display:block}
+  .content{padding:24px 20px}
+  .position-grid{grid-template-columns:1fr}
+  .layout{max-width:100%}
+}
+</style>
+</head>
+<body>
+
+<!-- TOP NAV -->
+<nav class="topnav">
+  <div class="topnav-left">
+    <button class="hamburger" id="hamburger" aria-label="Menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <a href="/" class="topnav-logo">
+      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="48" fill="#C8E63C"/><path d="M 18 28 Q 50 50 18 72" fill="none" stroke="white" stroke-width="6" stroke-linecap="round"/><path d="M 82 28 Q 50 50 82 72" fill="none" stroke="white" stroke-width="6" stroke-linecap="round"/></svg>
+      <span class="topnav-logo-text">Tennis Lineup</span>
+      <span class="topnav-logo-badge">Docs</span>
+    </a>
+  </div>
+  <a href="/" class="topnav-back">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+    Back to app
+  </a>
+</nav>
+
+<div class="sidebar-overlay" id="overlay"></div>
+
+<div class="layout">
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Getting Started</div>
+      <a class="sidebar-link active" data-page="intro">Introduction</a>
+      <a class="sidebar-link" data-page="quickstart">Quick Start</a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Roster</div>
+      <a class="sidebar-link" data-page="adding-players">Adding Players</a>
+      <a class="sidebar-link" data-page="partnerships">Partnerships</a>
+      <a class="sidebar-link" data-page="player-ratings">Player Ratings</a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Lineup</div>
+      <a class="sidebar-link" data-page="generating-lineup">Generating a Lineup</a>
+      <a class="sidebar-link" data-page="line-positions">Line Positions</a>
+      <a class="sidebar-link" data-page="opponent-scouting">Opponent Scouting</a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Help</div>
+      <a class="sidebar-link" data-page="faq">FAQ</a>
+      <a class="sidebar-link" data-page="troubleshooting">Troubleshooting</a>
+    </div>
+  </aside>
+
+  <!-- CONTENT -->
+  <main class="content">
+
+    <!-- INTRODUCTION -->
+    <div class="page active" id="page-intro">
+      <div class="prose">
+        <h1>Tennis Lineup</h1>
+        <p class="subtitle">Smart lineup management for USTA tennis team captains.</p>
+        <p>Tennis Lineup is a web app that helps USTA team captains manage their roster and generate optimal match lineups. It's focused on captains — individual players don't need an account.</p>
+        <p>It works across all competitive levels, from 2.5 mixed doubles to 4.5 men's leagues.</p>
+        <h2>What you can do</h2>
+        <ul>
+          <li><strong>Build a roster</strong> — Add players manually or auto-fill from TennisRecord profiles</li>
+          <li><strong>Track ratings &amp; stats</strong> — Dynamic ratings, court preferences, season win/loss records</li>
+          <li><strong>Manage partnerships</strong> — Record doubles pairings and their performance trends</li>
+          <li><strong>Generate lineups</strong> — Get optimal assignments across all five positions instantly</li>
+        </ul>
+        <h2>How it works</h2>
+        <div class="steps">
+          <div class="step"><div class="step-num">1</div><div class="step-body"><h3>Build your roster</h3><p>Add players with their dynamic ratings, court preferences, and line designations.</p></div></div>
+          <div class="step"><div class="step-num">2</div><div class="step-body"><h3>Mark availability</h3><p>Before each match, check off who can play. You need at least 8 for a full lineup.</p></div></div>
+          <div class="step"><div class="step-num">3</div><div class="step-body"><h3>Scout the opponent</h3><p>Enter their roster — or skip to Quick Mode if you don't have it.</p></div></div>
+          <div class="step"><div class="step-num">4</div><div class="step-body"><h3>Generate</h3><p>Click Generate Optimal Lineup. Review the assignments and adjust if needed.</p></div></div>
+        </div>
+        <div class="callout callout-info"><span class="callout-icon">ℹ️</span><div>No installation needed. Tennis Lineup runs entirely in your browser and stores your roster data locally.</div></div>
+      </div>
+    </div>
+
+    <!-- QUICK START -->
+    <div class="page" id="page-quickstart">
+      <div class="prose">
+        <h1>Quick Start</h1>
+        <p class="subtitle">Get your roster set up and generate your first lineup.</p>
+        <div class="qs-hero">
+          <h2>Before you begin</h2>
+          <p>Have your players' TennisRecord profile URLs handy — it makes adding players much faster. You'll need at least 8 players marked available to generate a complete lineup.</p>
+        </div>
+        <h2>Step-by-step</h2>
+        <div class="steps">
+          <div class="step"><div class="step-num">1</div><div class="step-body"><h3>Open the app</h3><p>Navigate to <a href="https://tennislineup.ai">tennislineup.ai</a> in your browser. No login required.</p></div></div>
+          <div class="step"><div class="step-num">2</div><div class="step-body"><h3>Add your players</h3><p>Click <strong>Add Player</strong> and enter each player's details. If they have a TennisRecord profile, paste the URL and click Lookup to auto-fill their name and rating.</p></div></div>
+          <div class="step"><div class="step-num">3</div><div class="step-body"><h3>Mark availability</h3><p>Before your match, check off who can play. Use <strong>Select All</strong> or <strong>Clear All</strong> to manage quickly. You need at least 8 available for a full lineup.</p></div></div>
+          <div class="step"><div class="step-num">4</div><div class="step-body"><h3>Enter opponent info (optional)</h3><p>Go to Opponent Scouting and add their players. Or choose <strong>Quick Mode</strong> to skip this step.</p></div></div>
+          <div class="step"><div class="step-num">5</div><div class="step-body"><h3>Generate your lineup</h3><p>Click <strong>Generate Optimal Lineup</strong>. The app assigns players to S1, S2, D1, D2, and D3 based on ratings, preferences, and partnership history.</p></div></div>
+          <div class="step"><div class="step-num">6</div><div class="step-body"><h3>Review and finalize</h3><p>Check the assignments and make any manual adjustments before submitting to your league.</p></div></div>
+        </div>
+        <div class="callout callout-tip"><span class="callout-icon">💡</span><div><strong>Pro tip:</strong> Add your doubles partnerships after building your roster. The generator uses partnership records to make smarter doubles assignments.</div></div>
+      </div>
+    </div>
+
+    <!-- ADDING PLAYERS -->
+    <div class="page" id="page-adding-players">
+      <div class="prose">
+        <h1>Adding Players</h1>
+        <p class="subtitle">Add players to your roster manually or using TennisRecord.</p>
+        <div class="callout callout-tip"><span class="callout-icon">💡</span><div><strong>Use TennisRecord whenever possible.</strong> It automatically fills in the player's name and current dynamic rating, saving time and reducing entry errors.</div></div>
+        <h2>Add a player</h2>
+        <div class="steps">
+          <div class="step"><div class="step-num">1</div><div class="step-body"><h3>Open the form</h3><p>Navigate to your roster and click <strong>Add New Player</strong>.</p></div></div>
+          <div class="step"><div class="step-num">2</div><div class="step-body"><h3>Look up via TennisRecord (optional)</h3><p>Paste the player's TennisRecord profile URL into the TennisRecord URL field and click <strong>Lookup</strong>. Their first name, last name, and dynamic rating will fill in automatically.</p></div></div>
+          <div class="step"><div class="step-num">3</div><div class="step-body"><h3>Complete remaining fields</h3><p>Fill in any fields not auto-populated. See the field reference below.</p></div></div>
+          <div class="step"><div class="step-num">4</div><div class="step-body"><h3>Save</h3><p>Click <strong>Add to Roster</strong>. The player appears in your availability list with a checkbox.</p></div></div>
+        </div>
+        <h2>Form fields</h2>
+        <table class="field-table">
+          <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td><strong>TennisRecord URL</strong></td><td>URL</td><td><span class="badge-opt">Optional</span></td><td>Paste the player's full profile URL to auto-fill name and rating</td></tr>
+            <tr><td><strong>First Name</strong></td><td>Text</td><td><span class="badge-req">Required</span></td><td></td></tr>
+            <tr><td><strong>Last Name</strong></td><td>Text</td><td><span class="badge-req">Required</span></td><td></td></tr>
+            <tr><td><strong>Dynamic Rating</strong></td><td>Number</td><td><span class="badge-req">Required</span></td><td>Current USTA dynamic rating (e.g. 3.91)</td></tr>
+            <tr><td><strong>Preferred Side</strong></td><td>Select</td><td><span class="badge-req">Required</span></td><td>Ad, Deuce, or Flexible</td></tr>
+            <tr><td><strong>Primary Line</strong></td><td>Select</td><td><span class="badge-req">Required</span></td><td>Doubles, Singles, or Both</td></tr>
+            <tr><td><strong>Win % at 4.0</strong></td><td>Number</td><td><span class="badge-opt">Optional</span></td><td>Estimated win percentage at 4.0 level</td></tr>
+            <tr><td><strong>Wins 2026</strong></td><td>Number</td><td><span class="badge-opt">Optional</span></td><td>Wins recorded this season</td></tr>
+            <tr><td><strong>Losses 2026</strong></td><td>Number</td><td><span class="badge-opt">Optional</span></td><td>Losses recorded this season</td></tr>
+          </tbody>
+        </table>
+        <h2>Managing availability</h2>
+        <p>After adding players, they appear in the availability list with checkboxes. Use <strong>Select All</strong> or <strong>Clear</strong> to manage availability efficiently. At least 8 players must be marked available to generate a complete lineup.</p>
+        <div class="callout callout-info"><span class="callout-icon">ℹ️</span><div>To edit a player after adding them, click the <strong>info icon</strong> next to their name in the roster.</div></div>
+      </div>
+    </div>
+
+    <!-- PARTNERSHIPS -->
+    <div class="page" id="page-partnerships">
+      <div class="prose">
+        <h1>Partnerships</h1>
+        <p class="subtitle">Track doubles partnerships and their performance trends.</p>
+        <p>A partnership represents a recorded pairing between two players. The generator uses this history to make smarter doubles assignments — prioritizing pairs that are trending up and separating pairs that are trending down.</p>
+        <h2>Recording a partnership</h2>
+        <div class="steps">
+          <div class="step"><div class="step-num">1</div><div class="step-body"><h3>Open the panel</h3><p>Navigate to your roster and click <strong>Add / View Partnerships</strong>.</p></div></div>
+          <div class="step"><div class="step-num">2</div><div class="step-body"><h3>Choose players</h3><p>Pick two different players from the dropdown menus. Order doesn't matter.</p></div></div>
+          <div class="step"><div class="step-num">3</div><div class="step-body"><h3>Enter match history</h3><p>Add the number of wins and losses the pair has accumulated together.</p></div></div>
+          <div class="step"><div class="step-num">4</div><div class="step-body"><h3>Set the trend</h3><p>Choose a trend indicator that reflects their current form.</p></div></div>
+          <div class="step"><div class="step-num">5</div><div class="step-body"><h3>Add notes (optional)</h3><p>Include context about chemistry, communication, or scheduling preferences.</p></div></div>
+          <div class="step"><div class="step-num">6</div><div class="step-body"><h3>Save</h3><p>Click <strong>Save Partnership</strong> to apply it to lineup generation.</p></div></div>
+        </div>
+        <h2>Form fields</h2>
+        <table class="field-table">
+          <thead><tr><th>Field</th><th>Required</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Player A &amp; B</strong></td><td><span class="badge-req">Required</span></td><td>Must be two different players from your roster</td></tr>
+            <tr><td><strong>Wins Together</strong></td><td><span class="badge-req">Required</span></td><td>Total wins as a pair</td></tr>
+            <tr><td><strong>Losses Together</strong></td><td><span class="badge-req">Required</span></td><td>Total losses as a pair</td></tr>
+            <tr><td><strong>Trend</strong></td><td><span class="badge-req">Required</span></td><td>Trending Up, Stable, or Trending Down</td></tr>
+            <tr><td><strong>Notes</strong></td><td><span class="badge-opt">Optional</span></td><td>Chemistry, communication, scheduling notes</td></tr>
+          </tbody>
+        </table>
+        <h2>How trends affect lineup generation</h2>
+        <ul>
+          <li><strong>Trending Up</strong> — Pair receives priority placement in stronger doubles positions</li>
+          <li><strong>Stable</strong> — Pair is placed based on combined ratings</li>
+          <li><strong>Trending Down</strong> — Pair may be separated or moved to a lower slot</li>
+        </ul>
+        <div class="callout callout-tip"><span class="callout-icon">💡</span><div>Unrecorded pairs default to individual player ratings. The more partnership data you enter, the more accurate your generated lineups will be.</div></div>
+      </div>
+    </div>
+
+    <!-- PLAYER RATINGS -->
+    <div class="page" id="page-player-ratings">
+      <div class="prose">
+        <h1>Player Ratings</h1>
+        <p class="subtitle">Understand dynamic ratings and player status badges.</p>
+        <h2>Dynamic ratings</h2>
+        <p>The app uses USTA dynamic ratings — continuously updated numerical values that reflect a player's recent match performance. A rating of <code>3.91</code> indicates a strong 4.0-level player performing near the top of that level.</p>
+        <p>Ratings are sourced either through TennisRecord profile lookups (recommended) or manual entry. They're the primary factor the generator uses to rank players and assign positions.</p>
+        <h2>Status badges</h2>
+        <p>Each player card displays a badge reflecting their current performance trend:</p>
+        <br>
+        <span class="badge-pill bp-hot">🔥 Hot</span>
+        <span class="badge-pill bp-improving">📈 Improving</span>
+        <span class="badge-pill bp-caution">⚠️ Caution</span>
+        <span class="badge-pill bp-cpt">★ CPT</span>
+        <br><br>
+        <table class="field-table">
+          <thead><tr><th>Badge</th><th>Meaning</th><th>Effect on lineup</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Hot</strong></td><td>Winning streak or above-rating performance</td><td>May trigger position upgrade</td></tr>
+            <tr><td><strong>Improving</strong></td><td>Upward rating momentum this season</td><td>May trigger position upgrade</td></tr>
+            <tr><td><strong>Caution</strong></td><td>Recent losses or declining trend</td><td>Included but flagged for manual review</td></tr>
+            <tr><td><strong>CPT</strong></td><td>Team captain</td><td>No effect on placement</td></tr>
+          </tbody>
+        </table>
+        <h2>Win/loss records</h2>
+        <p>Player records display as <code>W-L (%)</code> format showing seasonal match results alongside the dynamic rating. Higher-rated players with stronger records receive top slots in the generated lineup.</p>
+        <div class="callout callout-info"><span class="callout-icon">ℹ️</span><div>Keep dynamic ratings current throughout the season. A stale rating from the prior year will skew lineup recommendations.</div></div>
+      </div>
+    </div>
+
+    <!-- GENERATING A LINEUP -->
+    <div class="page" id="page-generating-lineup">
+      <div class="prose">
+        <h1>Generating a Lineup</h1>
+        <p class="subtitle">Generate an optimal lineup from your available players.</p>
+        <div class="callout callout-warning"><span class="callout-icon">⚠️</span><div><strong>Minimum requirement:</strong> A complete lineup requires 5 positions — 2 singles and 3 doubles pairs (6 players). You need at least <strong>8 available players</strong> to fill all positions.</div></div>
+        <h2>Generation workflow</h2>
+        <div class="steps">
+          <div class="step"><div class="step-num">1</div><div class="step-body"><h3>Mark available players</h3><p>Go to your roster and check off who can play. Use <strong>Select All</strong> or <strong>Clear</strong> to manage quickly.</p></div></div>
+          <div class="step"><div class="step-num">2</div><div class="step-body"><h3>Enter opponent information</h3><p>Go to Opponent Scouting and add their players, or choose <strong>Quick Mode</strong> to skip this step and optimize based on your roster alone.</p></div></div>
+          <div class="step"><div class="step-num">3</div><div class="step-body"><h3>Generate</h3><p>Click <strong>Generate Optimal Lineup</strong>. The algorithm evaluates all available players and assigns them to positions.</p></div></div>
+          <div class="step"><div class="step-num">4</div><div class="step-body"><h3>Review and adjust</h3><p>Check the S1, S2, D1, D2, D3 assignments. Make manual adjustments before finalizing.</p></div></div>
+        </div>
+        <h2>What the algorithm considers</h2>
+        <ul>
+          <li>Current dynamic ratings</li>
+          <li>Court-side preferences (Ad, Deuce, or Flexible)</li>
+          <li>Line designations (Singles, Doubles, or Both)</li>
+          <li>Individual win percentages and seasonal records</li>
+          <li>Recorded doubles partnerships and performance trends</li>
+        </ul>
+        <h2>Quick Mode</h2>
+        <p>When you don't have opponent data or want a fast answer, Quick Mode skips opponent analysis and optimizes purely from your roster. It still produces a valid, complete lineup.</p>
+      </div>
+    </div>
+
+    <!-- LINE POSITIONS -->
+    <div class="page" id="page-line-positions">
+      <div class="prose">
+        <h1>Line Positions</h1>
+        <p class="subtitle">Understand what each lineup position means.</p>
+        <p>A USTA team match consists of five positions: two singles and three doubles pairs. The generator assigns players to each based on ratings, preferences, and matchup data.</p>
+        <h2>The five positions</h2>
+        <div class="position-grid">
+          <div class="pos-card gold">
+            <div class="pos-card-label">Singles</div>
+            <div class="pos-card-name">S1</div>
+            <div class="pos-card-desc">Your strongest singles player. Faces the opponent's top singles player.</div>
+          </div>
+          <div class="pos-card">
+            <div class="pos-card-label">Singles</div>
+            <div class="pos-card-name">S2</div>
+            <div class="pos-card-desc">Second-ranked singles player. Faces the opponent's second singles player.</div>
+          </div>
+          <div class="pos-card gold">
+            <div class="pos-card-label">Doubles</div>
+            <div class="pos-card-name">D1</div>
+            <div class="pos-card-desc">Your top doubles pair. Faces the opponent's strongest doubles pair.</div>
+          </div>
+          <div class="pos-card">
+            <div class="pos-card-label">Doubles</div>
+            <div class="pos-card-name">D2</div>
+            <div class="pos-card-desc">Mid-tier doubles partnership.</div>
+          </div>
+          <div class="pos-card">
+            <div class="pos-card-label">Doubles</div>
+            <div class="pos-card-name">D3</div>
+            <div class="pos-card-desc">Third doubles pair. May be strategically placed to secure a win.</div>
+          </div>
+        </div>
+        <h2>Court positioning in doubles</h2>
+        <p>Each doubles pair includes an Ad side and Deuce side player. Setting accurate preferences helps the generator create stronger pairings.</p>
+        <table class="field-table">
+          <thead><tr><th>Preference</th><th>Court side</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Ad side</strong></td><td>Left court</td><td>Returns and initiates points from the left</td></tr>
+            <tr><td><strong>Deuce side</strong></td><td>Right court</td><td>Returns and initiates points from the right</td></tr>
+            <tr><td><strong>Flexible</strong></td><td>Either</td><td>Placement determined by generator optimization</td></tr>
+          </tbody>
+        </table>
+        <h2>Player line designations</h2>
+        <table class="field-table">
+          <thead><tr><th>Designation</th><th>Eligible positions</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Singles</strong></td><td>S1, S2 only</td></tr>
+            <tr><td><strong>Doubles</strong></td><td>D1, D2, D3 only</td></tr>
+            <tr><td><strong>Both</strong></td><td>Any position — placed where they fit best</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- OPPONENT SCOUTING -->
+    <div class="page" id="page-opponent-scouting">
+      <div class="prose">
+        <h1>Opponent Scouting</h1>
+        <p class="subtitle">Enter your opponent's lineup before generating your own.</p>
+        <p>Scouting your opponent lets the generator factor in matchups when assigning positions — putting your strengths against their weaknesses where possible.</p>
+        <h2>Entry modes</h2>
+        <div class="steps">
+          <div class="step"><div class="step-num" style="background:#16A34A">✓</div><div class="step-body"><h3>Full Scouting</h3><p>Enter each opponent player by name and optionally a TennisRecord URL. The system retrieves their rating automatically. Best when you have access to their roster from a league website or prior match.</p></div></div>
+          <div class="step"><div class="step-num" style="background:#6B7280">→</div><div class="step-body"><h3>Quick Mode</h3><p>Skip opponent entry entirely. The generator optimizes based solely on your roster's strengths, preferences, and historical performance. Use this when speed matters or opponent data isn't available.</p></div></div>
+        </div>
+        <h2>Positions to fill</h2>
+        <ul>
+          <li><strong>S1</strong> and <strong>S2</strong> — singles players</li>
+          <li><strong>D1, D2, D3</strong> — three doubles pairs (six players total)</li>
+        </ul>
+        <h2>Roster paste</h2>
+        <p>Use the paste function to populate opponent fields quickly. The tool parses flexible formats including names with ratings, position labels (S1, S2, D1…), or TennisRecord URLs. Review the parsed results before generating.</p>
+        <div class="callout callout-tip"><span class="callout-icon">💡</span><div>TennisRecord URLs load opponent ratings automatically — no manual entry needed. Just paste the URL and the rating fills in.</div></div>
+      </div>
+    </div>
+
+    <!-- FAQ -->
+    <div class="page" id="page-faq">
+      <div class="prose">
+        <h1>FAQ</h1>
+        <p class="subtitle">Answers to common questions about Tennis Lineup.</p>
+        <br>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">How do I add a player quickly? <span class="chevron">▼</span></div><div class="faq-a">Paste a TennisRecord profile URL and click Lookup. It automatically fills in the player's name and dynamic rating — no manual entry needed.</div></div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">What is a dynamic rating? <span class="chevron">▼</span></div><div class="faq-a">A USTA dynamic rating is a continuously updated numerical value (e.g. 3.91) that reflects a player's recent match performance. Unlike year-end ratings, dynamic ratings update throughout the season.</div></div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">What do the status badges mean? <span class="chevron">▼</span></div><div class="faq-a"><span class="badge-pill bp-hot">🔥 Hot</span> — winning streak or above-rating performance<br><br><span class="badge-pill bp-improving">📈 Improving</span> — upward rating trend this season<br><br><span class="badge-pill bp-caution">⚠️ Caution</span> — recent losses or declining performance<br><br><span class="badge-pill bp-cpt">★ CPT</span> — team captain designation</div></div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">Can I generate a lineup without opponent data? <span class="chevron">▼</span></div><div class="faq-a">Yes. Choose Quick Mode (No Opponent Info) to generate a valid lineup optimized for your roster's strengths without any opponent information.</div></div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">What if I have fewer than 8 available players? <span class="chevron">▼</span></div><div class="faq-a">With fewer than 8 available players, some doubles positions may remain unfilled. The generator optimizes whatever positions it can fill with the players available.</div></div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">How do partnerships affect the lineup? <span class="chevron">▼</span></div><div class="faq-a">Trending Up partnerships receive priority in higher doubles slots. Trending Down pairs may be separated or moved to a lower position. Unrecorded pairs are placed based on individual ratings alone.</div></div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">How do I edit a player after adding them? <span class="chevron">▼</span></div><div class="faq-a">Click the info icon next to a player's name in the roster to open their detail view and edit any field.</div></div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">What does "Flexible" court side mean? <span class="chevron">▼</span></div><div class="faq-a">A Flexible player can play either Ad or Deuce side in doubles. The generator decides their placement based on what creates the strongest overall pair.</div></div>
+      </div>
+    </div>
+
+    <!-- TROUBLESHOOTING -->
+    <div class="page" id="page-troubleshooting">
+      <div class="prose">
+        <h1>Troubleshooting</h1>
+        <p class="subtitle">Fix common issues with roster management and lineup generation.</p>
+        <div class="callout callout-warning"><span class="callout-icon">⚠️</span><div>If you encounter a persistent issue not listed here, try refreshing the page. Your roster data is preserved in browser local storage and will not be lost on refresh.</div></div>
+        <br>
+        <div class="trouble-item"><div class="trouble-issue">TennisRecord lookup returns no data</div><div class="trouble-fix"><ul><li>Use the full URL to the player's TennisRecord profile page</li><li>The player must have a public TennisRecord profile</li><li>If it fails, enter their name and dynamic rating manually</li></ul></div></div>
+        <div class="trouble-item"><div class="trouble-issue">Lineup generator doesn't fill all positions</div><div class="trouble-fix"><ul><li>You need at least 8 available players for a complete lineup</li><li>Check that Singles-only players aren't blocking doubles slots</li><li>An incomplete roster will naturally leave some positions unfilled</li></ul></div></div>
+        <div class="trouble-item"><div class="trouble-issue">Player is absent from the lineup despite being available</div><div class="trouble-fix"><ul><li>Check the player's line preference — a Singles-only player won't fill doubles slots</li><li>A large rating differential vs. the opponent may affect placement</li><li>Confirm the player's availability checkbox is checked</li></ul></div></div>
+        <div class="trouble-item"><div class="trouble-issue">Opponent ratings aren't loading automatically</div><div class="trouble-fix"><ul><li>Verify the TennisRecord URL is valid and leads to a player profile page</li><li>Private or non-existent profiles won't return data — enter ratings manually</li></ul></div></div>
+        <div class="trouble-item"><div class="trouble-issue">Partnership can't be saved</div><div class="trouble-fix"><ul><li>Both players must exist in your current roster</li><li>Make sure you clicked Save Partnership after filling out the form</li></ul></div></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+const links = document.querySelectorAll('.sidebar-link');
+const pages = document.querySelectorAll('.page');
+
+function showPage(id) {
+  links.forEach(l => l.classList.toggle('active', l.dataset.page === id));
+  pages.forEach(p => p.classList.toggle('active', p.id === 'page-' + id));
+  window.scrollTo(0, 0);
+  // close mobile sidebar
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('open');
+}
+
+links.forEach(l => l.addEventListener('click', () => showPage(l.dataset.page)));
+
+// Handle hash
+function loadFromHash() {
+  const id = location.hash.replace('#', '') || 'intro';
+  if (document.getElementById('page-' + id)) showPage(id);
+}
+window.addEventListener('hashchange', loadFromHash);
+loadFromHash();
+
+// Mobile hamburger
+document.getElementById('hamburger').addEventListener('click', () => {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('overlay').classList.toggle('open');
+});
+document.getElementById('overlay').addEventListener('click', () => {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('open');
+});
+
+// FAQ toggle
+function toggleFaq(el) {
+  el.classList.toggle('open');
+  el.nextElementSibling.classList.toggle('open');
+}
+</script>
+</body>
+</html>
